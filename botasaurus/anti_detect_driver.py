@@ -39,11 +39,7 @@ class AntiDetectDriver(webdriver.Chrome):
         # selenium.common.exceptions.WebDriverException
 
         currenturl = self.current_url
-        self.execute_script(
-            f"""
-                window.location.href = "{link}";
-            """
-        )
+        self.execute_script(f'window.location.href = "{link}";')
 
         # cleaned = link.replace("https://", "").replace("http://", "")
         changed = False
@@ -277,11 +273,7 @@ class AntiDetectDriver(webdriver.Chrome):
             return None
 
     def scroll_site(self):
-        self.execute_script(
-            """
-window.scrollBy(0, 10000);
-"""
-        )
+        self.execute_script('window.scrollBy(0, 10000);')
 
     def can_element_be_scrolled(self, element):
         # <=3 is a fix to handle floating point numbers
