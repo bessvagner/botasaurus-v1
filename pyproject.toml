@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "botasaurus2"
-version = "0.1.0"
+name = "botasaurus"
+version = "1.0.0"
 description = "Patching fork of botasaurus, The All in One Framework to build Awesome Scrapers."
 authors = ["Chetan Jain"]
 license = "MIT"
