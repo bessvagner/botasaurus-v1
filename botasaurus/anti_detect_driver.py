@@ -1,3 +1,5 @@
+import logging
+import traceback
 from selenium.common.exceptions import StaleElementReferenceException
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -7,7 +9,7 @@ from traceback import print_exc
 
 from selenium import webdriver
 from selenium.webdriver import Chrome
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
@@ -25,6 +27,10 @@ from .wait import Wait
 from .driver_about import AboutBrowser
 from .accept_google_cookies import accept_google_cookies
 
+from .shortcuts import ATTR_SELECTOR
+
+logger = logging.getLogger()
+
 
 class AntiDetectDriver(Chrome):
 
@@ -34,6 +40,7 @@ class AntiDetectDriver(Chrome):
         self.about: AboutBrowser = None
         self.is_network_enabled = False
         self.close_proxy = False
+        self.timeout = 12
 
     def get_by_current_page_referrer(self, link, wait=None):
 
@@ -508,3 +515,96 @@ class AntiDetectDriver(Chrome):
             callable(getattr(self, "kill_chrome_by_pid"))
         ):
             self.kill_chrome_by_pid()
+
+    def find(
+        self,
+        *,
+        value: str,
+        by: str = "id",
+        expected_condition=EC.presence_of_element_located,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException,)
+    ) -> WebElement | list[WebElement] | None:
+        """
+        Finds an element on the web page using the specified locator strategy
+        and waits until the element is present.
+
+        Parameters
+        ----------
+        value : str
+            The value to search for, such as the ID, name, or XPath of the
+            element.
+        by : str, default "id"
+            The locator strategy to use, such as "id", "name", "xpath", etc.
+        expected_condition : Callable, default EC.presence_of_element_located
+            The expected condition to wait for, such as the presence of the
+            element.
+        timeout : int, optional
+            The maximum time to wait for the condition to be met. If not
+            specified, the default timeout is used.
+        poll_frequency : float, default 0.5
+            The frequency at which the condition is checked, in seconds.
+        ignored_exceptions : tuple, default (NoSuchElementException,)
+            Exceptions to ignore while waiting for the condition.
+
+        Returns
+        -------
+        WebElement, list[WebElement], None
+            The first matching element found, a list os elements (if adequate
+            expected_condition is given) or None if it finds nothing
+
+        Raises
+        ------
+        TimeoutException
+            If the condition is not met within the specified timeout.
+        """
+        if by not in ATTR_SELECTOR:
+            logger.warning(
+                "Unsupported attribute or selector type '%s'. Returning None",
+                by
+            )
+            return None
+        if timeout is None:
+            timeout = self.timeout
+        wait = self.wait(timeout, poll_frequency, ignored_exceptions)
+        try:
+            return wait.until(expected_condition((ATTR_SELECTOR[by], value)))
+        except TimeoutException:
+            logger.warning("Finding %s timeout", (ATTR_SELECTOR[by], value))
+            return None
+        except Exception as err:  # pylint: disable=W0703
+            logger.error(traceback.format_exc())
+            logger.warning("%s: Returning None", err)
+            return None
+
+    def wait(
+        self,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException, )
+    ):
+        """
+        Returns a WebDriverWait object that can be used to wait for a condition
+        to be met.
+
+        Parameters
+        ----------
+        timeout : int, optional
+            The maximum time to wait for the condition to be met. If not
+            specified, the default timeout is used.
+        poll_frequency : float, default 0.5
+            The frequency at which the condition is checked, in seconds.
+        ignored_exceptions : tuple, default (NoSuchElementException,)
+            Exceptions to ignore while waiting for the condition.
+
+        Returns
+        -------
+        WebDriverWait
+            A WebDriverWait object configured with the specified parameters.
+        """
+        if timeout is None:
+            timeout = self.timeout
+        return WebDriverWait(
+            self, timeout, poll_frequency, ignored_exceptions
+        )
