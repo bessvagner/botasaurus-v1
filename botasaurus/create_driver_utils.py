@@ -3,6 +3,7 @@ import os
 from sys import argv
 from shutil import rmtree
 
+import selenium
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -234,8 +235,14 @@ def create_selenium_driver(options, desired_capabilities, attempt_download=True)
         add_server_args(options)
 
     try:
-        
         path = relative_path(get_driver_path(), 0)
+        if selenium.__version__ == '4.5.0':
+            driver = AntiDetectDriver(
+                desired_capabilities=desired_capabilities,
+                chrome_options=options,
+                executable_path=path,
+            )
+            return driver
         service = ChromeService(executable_path=path)
         if desired_capabilities:
             for name, value in desired_capabilities.items():
