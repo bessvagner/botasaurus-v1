@@ -6,6 +6,7 @@ from time import sleep
 from traceback import print_exc
 
 from selenium import webdriver
+from selenium.webdriver import Chrome
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -25,7 +26,7 @@ from .driver_about import AboutBrowser
 from .accept_google_cookies import accept_google_cookies
 
 
-class AntiDetectDriver(webdriver.Chrome):
+class AntiDetectDriver(Chrome):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

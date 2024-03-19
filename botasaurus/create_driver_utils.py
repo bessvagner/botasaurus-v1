@@ -1,12 +1,14 @@
 from time import sleep
 import os
 from sys import argv
+from shutil import rmtree
+
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-from shutil import rmtree
-from .get_chrome_version import get_driver_path
+from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.common.exceptions import SessionNotCreatedException
 
+from .get_chrome_version import get_driver_path
 from .driver_about import AboutBrowser
 from .anti_detect_driver import AntiDetectDriver
 from .user_agent import UserAgent, UserAgentInstance
@@ -125,7 +127,7 @@ def is_docker():
 
     return (
         os.path.exists('/.dockerenv') or
-        os.path.isfile(path) and any('docker' in line for line in open(path))
+        os.path.isfile(path) and any('docker' in line for line in open(path))  # TODO: fix ResourceWarning
         or os.environ.get('KUBERNETES_SERVICE_HOST') is not None
     )
 
@@ -232,13 +234,14 @@ def create_selenium_driver(options, desired_capabilities, attempt_download=True)
         add_server_args(options)
 
     try:
+        
         path = relative_path(get_driver_path(), 0)
-        driver = AntiDetectDriver(
-            desired_capabilities=desired_capabilities,
-            chrome_options=options,
-            executable_path=path,
-        )
-        return driver
+        service = ChromeService(executable_path=path)
+        if desired_capabilities:
+            for name, value in desired_capabilities.items():
+                options.set_capability(name, value)
+        return AntiDetectDriver(options=options, service=service)
+        
     except SessionNotCreatedException as e:
         if "This version of ChromeDriver only supports Chrome version" in str(e) and attempt_download:
             # Handle the specific case where ChromeDriver version is not compatible
