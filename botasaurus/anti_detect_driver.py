@@ -5,7 +5,8 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from random import uniform
 from time import sleep
-from traceback import print_exc
+from traceback import
+from typing import Callable
 
 from selenium import webdriver
 from selenium.webdriver import Chrome
@@ -27,7 +28,7 @@ from .wait import Wait
 from .driver_about import AboutBrowser
 from .accept_google_cookies import accept_google_cookies
 
-from .shortcuts import ATTR_SELECTOR
+from .shortcuts import ATTR_SELECTOR, Keys
 
 logger = logging.getLogger()
 
@@ -85,6 +86,9 @@ class AntiDetectDriver(Chrome):
             bp = True
 
         return beep_input(text, bp)
+
+    def random_sleep(self, low, high):
+        sleep_for_n_seconds(uniform(low, high))
 
     def short_random_sleep(self):
         sleep_for_n_seconds(uniform(2, 4))
@@ -516,15 +520,46 @@ class AntiDetectDriver(Chrome):
         ):
             self.kill_chrome_by_pid()
 
+    def wait(
+        self,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException, ),
+    ):
+        """
+        Returns a WebDriverWait object that can be used to wait for a condition
+        to be met.
+
+        Parameters
+        ----------
+        timeout : int, optional
+            The maximum time to wait for the condition to be met. If not
+            specified, the default timeout is used.
+        poll_frequency : float, default 0.5
+            The frequency at which the condition is checked, in seconds.
+        ignored_exceptions : tuple, default (NoSuchElementException,)
+            Exceptions to ignore while waiting for the condition.
+
+        Returns
+        -------
+        WebDriverWait
+            A WebDriverWait object configured with the specified parameters.
+        """
+        if timeout is None:
+            timeout = self.timeout
+        return WebDriverWait(
+            self, timeout, poll_frequency, ignored_exceptions
+        )
+
     def find(
         self,
         *,
         value: str,
         by: str = "id",
-        expected_condition=EC.presence_of_element_located,
-        timeout=None,
-        poll_frequency=0.5,
-        ignored_exceptions=(NoSuchElementException,)
+        expected_condition: Callable = EC.presence_of_element_located,
+        timeout: bool = None,
+        poll_frequency: float = 0.5,
+        ignored_exceptions=(NoSuchElementException,),
     ) -> WebElement | list[WebElement] | None:
         """
         Finds an element on the web page using the specified locator strategy
@@ -554,10 +589,6 @@ class AntiDetectDriver(Chrome):
             The first matching element found, a list os elements (if adequate
             expected_condition is given) or None if it finds nothing
 
-        Raises
-        ------
-        TimeoutException
-            If the condition is not met within the specified timeout.
         """
         if by not in ATTR_SELECTOR:
             logger.warning(
@@ -578,18 +609,32 @@ class AntiDetectDriver(Chrome):
             logger.warning("%s: Returning None", err)
             return None
 
-    def wait(
+    def find_all(
         self,
-        timeout=None,
-        poll_frequency=0.5,
-        ignored_exceptions=(NoSuchElementException, )
-    ):
+        *,
+        value: str,
+        by: str = "id",
+        expected_condition: Callable = EC.presence_of_all_elements_located,
+        timeout: bool = None,
+        poll_frequency: float = 0.5,
+        ignored_exceptions=(NoSuchElementException,),
+    ) -> list[WebElement]:
         """
-        Returns a WebDriverWait object that can be used to wait for a condition
-        to be met.
+        Finds all elements on the web page that match the specified locator
+        strategy and waits until at least one element is present.
+
 
         Parameters
         ----------
+        value : str
+            The value to search for, such as the ID, name, or XPath of the
+            elements.
+        by : str, default "id"
+            The locator strategy to use, such as "id", "name", "xpath", etc.
+        expected_condition : Callable, default
+        EC.presence_of_all_elements_located
+            The expected condition to wait for, such as the presence of the
+            elements.
         timeout : int, optional
             The maximum time to wait for the condition to be met. If not
             specified, the default timeout is used.
@@ -600,11 +645,386 @@ class AntiDetectDriver(Chrome):
 
         Returns
         -------
-        WebDriverWait
-            A WebDriverWait object configured with the specified parameters.
+        list[WebElement], []
+            A list os elements or empty list if it finds nothing
         """
-        if timeout is None:
-            timeout = self.timeout
-        return WebDriverWait(
-            self, timeout, poll_frequency, ignored_exceptions
+        result = self.find(
+            value=value,
+            by=by,
+            expected_condition=expected_condition,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions,
+        )
+        if isinstance(result, WebElement):
+            return [result]
+        if result is None:
+            return []
+        return result
+
+    def xpath(
+        self,
+        *,
+        value: str,
+        expected_condition: Callable = EC.presence_of_all_elements_located,
+        timeout: bool = None,
+        poll_frequency: float = 0.5,
+        ignored_exceptions=(NoSuchElementException,),
+    ) -> list[WebElement]:
+        """
+        Finds all elements on the web page that match the specified XPath and
+        waits until at least one element is present.
+
+        Parameters
+        ----------
+        value : str
+            The XPath expression to search for.
+        expected_condition : Callable, default EC.presence_of_all_elements_located  # noqa E501
+            The expected condition to wait for, such as the presence of the
+            elements.
+        timeout : int, optional
+            The maximum time to wait for the condition to be met. If not
+            specified, the default timeout is used.
+        poll_frequency : float, default 0.5
+            The frequency at which the condition is checked, in seconds.
+        ignored_exceptions : tuple, default (NoSuchElementException,)
+            Exceptions to ignore while waiting for the condition.
+
+        Returns
+        -------
+        list[WebElement], []
+            A list os elements or empty list if it finds nothing
+
+        """
+        return self.find_all(
+            value=value,
+            by="xpath",
+            expected_condition=expected_condition,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions,
+        )
+
+    def send_to(
+        self,
+        element: WebElement,
+        key: str,
+        *,
+        press_enter: bool = False,
+        expected_condition: Callable = EC.element_to_be_clickable,
+        timeout: bool = None,
+        poll_frequency: float = 0.5,
+        ignored_exceptions=(NoSuchElementException,),
+    ):
+        """
+        Sends a key to the specified web element and optionally presses the
+        Enter key.
+
+
+        Parameters
+        ----------
+        element : WebElement
+            The web element to send the key to.
+        key : str | Key
+            The key or text to send to the element.
+        expected_condition : Callable, default EC.element_to_be_clickable
+            The expected condition to wait for before sending the key.
+        enter : bool, default False
+            Whether to press the Enter key after sending the key.
+        timeout : int, optional
+            The maximum time to wait for the condition to be met. If not
+            specified, the default timeout is used.
+        poll_frequency : float, default 0.5
+            The frequency at which the condition is checked, in seconds.
+        ignored_exceptions : tuple, default (NoSuchElementException,)
+            Exceptions to ignore while waiting for the condition.
+
+        Returns
+        -------
+        WebElement, None
+            The element to which the key was sent. If sending keys fails,
+            None is returned.
+        """
+        if element is None:
+            return None
+        wait = self.wait(timeout, poll_frequency, ignored_exceptions)
+        try:
+            wait.until(expected_condition(element)).send_keys(key)
+        except TimeoutException:
+            return None
+        if press_enter:
+            element.send_keys(Keys.RETURN)
+        return element
+
+    def send(
+        self,
+        element: WebElement,
+        *,
+        value: str,
+        key: str,
+        by="id",
+        expected_condition_element=EC.presence_of_element_located,
+        expected_condition_send=EC.element_to_be_clickable,
+        enter=False,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException,),
+    ):
+        """
+        Sends a key to the specified web element and optionally presses the Enter key.
+
+        This method first locates the element using the provided locator strategy (`by`),
+        waits for the element to be present, and then sends the specified key to the element.
+        If the `enter` parameter is set to True, it will also press the Enter key after sending the key.
+
+        Parameters
+        ----------
+        element : WebElement
+            The web element to send the key to.
+        value : str
+            The value to search for, such as the ID, name, or XPath of the element.
+        key : str
+            The key or text to send to the element.
+        by : str, default "id"
+            The locator strategy to use, such as "id", "name", "xpath", etc.
+        expected_condition_element : Callable, default EC.presence_of_element_located
+            The expected condition to wait for before locating the element.
+        expected_condition_send : Callable, default EC.element_to_be_clickable
+            The expected condition to wait for before sending the key.
+        enter : bool, default False
+            Whether to press the Enter key after sending the key.
+        timeout : int, optional
+            The maximum time to wait for the condition to be met. If not specified,
+            the default timeout is used.
+        poll_frequency : float, default 0.5
+            The frequency at which the condition is checked, in seconds.
+        ignored_exceptions : tuple, default (NoSuchElementException,)
+            Exceptions to ignore while waiting for the condition.
+
+        Returns
+        -------
+        WebElement, None
+            The element to which the key was sent. If sending keys fails, None is returned.
+        """
+        element = self.find(
+            value=value,
+            by=by,
+            expected_condition=expected_condition_element,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions,
+        )
+        return self.send_to(
+            element,
+            key,
+            expected_condition=expected_condition_send,
+            enter=enter,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions,
+        )
+
+    def child(
+        self,
+        element: WebElement,
+        *,
+        value: str,
+        by="id",
+        expected_condition=EC.visibility_of,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException,),
+    ) -> WebElement | None:
+        """
+        Finds a child element of the specified web element using the specified
+        locator strategy and waits until the element is visible.
+
+        Parameters
+        ----------
+        element : WebElement
+            The parent web element to find the child element within.
+        value : str
+            The value to search for, such as the ID, name, or XPath of the
+            child element.
+        by : str, default "id"
+            The locator strategy to use, such as "id", "name", "xpath", etc.
+        expected_condition : Callable, default EC.visibility_of
+            The expected condition to wait for, such as the visibility of the
+            child element. NOTE: by default, it is expected that `element`
+            has a height and width different from zero.
+        timeout : int, optional
+            The maximum time to wait for the condition to be met. If not
+            specified, the default timeout is used.
+        poll_frequency : float, default 0.5
+            The frequency at which the condition is checked, in seconds.
+        ignored_exceptions : tuple, default (NoSuchElementException,)
+            Exceptions to ignore while waiting for the condition.
+
+        Returns
+        -------
+        WebElement
+            The first matching child element found or None
+
+        """
+        wait = self.wait(timeout, poll_frequency, ignored_exceptions)
+        try:
+            wait.until(expected_condition(element))
+        except StaleElementReferenceException as err:
+            logger.warning("%s. Returning None", err)
+            return None
+        try:
+            return wait.until(
+                lambda: element.find_element(ATTR_SELECTOR[by], value),
+                f"Failed finding child of {element}"
+            )
+        except TimeoutException as err:
+            logger.warning("%s. Returning None", err)
+            return None
+
+    def child_by_class(
+        self,
+        element: WebElement,
+        *,
+        value: str,
+        expected_condition=EC.visibility_of,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException,),
+    ) -> WebElement | None:
+        """
+        Same as `AntiDetectDriver.child`, with `by='class name'`.
+        """
+        return self.child(
+            element,
+            value=value,
+            by=ATTR_SELECTOR['class name'],
+            expected_condition=expected_condition,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions,
+        )
+
+    def child_by_xpath(
+        self,
+        element: WebElement,
+        *,
+        value: str,
+        expected_condition=EC.visibility_of,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException,),
+    ) -> WebElement | None:
+        """
+        Same as `AntiDetectDriver.child`, with `by='xpath'`.
+        """
+        return self.child(
+            element,
+            value=value,
+            by=ATTR_SELECTOR['xpath'],
+            expected_condition=expected_condition,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions,
+        )
+
+    def children(
+        self,
+        element: WebElement,
+        *,
+        value: str,
+        by="id",
+        expected_condition=EC.visibility_of,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException,)
+    ) -> list[WebElement] | None:
+        """
+        Finds all child elements of the specified web element using the
+        specified locator strategy and waits until at least one element is
+        visible.
+
+        Parameters
+        ----------
+        element : WebElement
+            The parent web element to find the child elements within.
+        value : str
+            The value to search for, such as the ID, name, or XPath of the
+            child elements.
+        by : str, default "id"
+            The locator strategy to use, such as "id", "name", "xpath", etc.
+        expected_condition : Callable, default EC.visibility_of
+            The expected condition to wait for, such as the visibility of the
+            child elements.
+        timeout : int, optional
+            The maximum time to wait for the condition to be met. If not
+            specified, the default timeout is used.
+        poll_frequency : float, default 0.5
+            The frequency at which the condition is checked, in seconds.
+        ignored_exceptions : tuple, default (NoSuchElementException,)
+            Exceptions to ignore while waiting for the condition.
+
+        Returns
+        -------
+        list[WebElement], []
+            A list of all matching child elements found, or empty list if
+            it fails.
+        """
+        wait = self.wait(timeout, poll_frequency, ignored_exceptions)
+        try:
+            wait.until(expected_condition(element))
+        except StaleElementReferenceException as err:
+            logger.warning("%s. Returning None", err)
+            return []
+        try:
+            return wait.until(
+                lambda: element.find_elements(ATTR_SELECTOR[by], value),
+                f"Failed finding child of {element}"
+            )
+        except TimeoutException:
+            return []
+
+    def children_by_class(
+        self,
+        element: WebElement,
+        *,
+        value: str,
+        expected_condition=EC.visibility_of,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException,),
+    ) -> WebElement | None:
+        """
+            Same as `AntiDetectDriver.children`, with `by='class name'`.
+        """
+        return self.children(
+            element,
+            value=value,
+            by=ATTR_SELECTOR['class name'],
+            expected_condition=expected_condition,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions,
+        )
+
+    def children_by_xpath(
+        self,
+        element: WebElement,
+        *,
+        value: str,
+        expected_condition=EC.visibility_of,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException,),
+    ) -> WebElement | None:
+        """
+            Same as `AntiDetectDriver.children`, with `by='xpath'`.
+        """
+        return self.children(
+            element,
+            value=value,
+            by=ATTR_SELECTOR['xpath'],
+            expected_condition=expected_condition,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions,
         )
