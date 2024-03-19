@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from random import uniform
 from time import sleep
-from traceback import
+from traceback import print_exc
 from typing import Callable
 
 from selenium import webdriver
@@ -12,12 +12,14 @@ from selenium.webdriver import Chrome
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import (
     StaleElementReferenceException,
     JavascriptException,
     NoSuchElementException,
+    NoSuchWindowException,
     TimeoutException,
 )
 
@@ -568,8 +570,8 @@ class AntiDetectDriver(Chrome):
 
     def find(
         self,
-        *,
         value: str,
+        *,
         by: str = "id",
         expected_condition: Callable = EC.presence_of_element_located,
         timeout: bool = None,
@@ -626,8 +628,8 @@ class AntiDetectDriver(Chrome):
 
     def find_all(
         self,
-        *,
         value: str,
+        *,
         by: str = "id",
         expected_condition: Callable = EC.presence_of_all_elements_located,
         timeout: bool = None,
@@ -1592,3 +1594,97 @@ class AntiDetectDriver(Chrome):
             "Unable to locate element by %s with value %s",
             by, value
         )
+
+    def tab_handle(self):
+        """
+        Retrieves the handle of the current window (tab) of the web driver.
+
+        Returns
+        -------
+        str
+            The handle of the current window (tab) of the web driver.
+        """
+        return self.current_window_handle
+
+    def tabs(self):
+        """
+        Retrieves a list of handles for all open windows (tabs) of the web
+        driver.
+
+        Returns
+        -------
+        list[str]
+            A list of handles for all open windows (tabs) of the web driver.
+        """
+        return self.window_handles
+
+    def switch_to_tab(self, index: int):
+        """
+        Switches the web driver's focus to the tab at the specified index.
+
+        Parameters
+        ----------
+        index : int
+            The index of the tab to switch to.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range of the available tabs.
+        """
+        tabs = self.tabs()
+        if len(tabs) <= index:
+            logger.warning(
+                "Trying to switch to tab nº %d, but there are only %d tabs",
+                index,
+                len(tabs),
+            )
+        else:
+            self.switch_to.window(tabs[index])
+
+    def close_tab(self):
+        """
+        Attempts to close the current tab of the web driver. If the current
+        tab cannot be closed, it switches to the first tab and closes it.
+
+        Raises
+        ------
+        NoSuchWindowException
+            If the current tab cannot be closed.
+        """
+        try:
+            self.close()
+        except NoSuchWindowException:
+            self.switch_to_tab(0)
+
+    def switch_to_frame(self,
+                        *,
+                        value: str,
+                        by='id',
+                        timeout: bool = None,
+                        poll_frequency: float = 0.5,
+                        ignored_exceptions=(NoSuchElementException,),):
+        """
+        Switches the web driver's focus to the frame specified by the given
+        value and locator strategy.
+
+        Parameters
+        ----------
+        value : str
+            The value to search for, such as the ID, name, or XPath of the frame.  # noqa E501
+        by : str, default 'id'
+            The locator strategy to use, such as "id", "name", "xpath", etc.
+
+        Raises
+        ------
+        TimeoutException
+            If the frame is not found within the specified timeout.
+        """
+        try:
+            self.wait(timeout, poll_frequency, ignored_exceptions).until(
+                EC.frame_to_be_available_and_switch_to_it(
+                    (by, value)
+                )
+            )
+        except TimeoutException as err:
+            logger.error(err)
