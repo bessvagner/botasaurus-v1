@@ -7,6 +7,9 @@ from http.client import RemoteDisconnected
 from time import sleep
 from urllib.error import ContentTooShortError, URLError
 from sys import platform, exit
+
+from selenium.webdriver.remote.webelement import WebElement
+
 from .list_utils import flatten_depth
 
 
@@ -293,3 +296,68 @@ def get_current_profile_path(config):
     profiles_path = f'profiles/{config.profile}/'
     # profiles_path =  relative_path(path, 0)
     return profiles_path
+
+DISPATCH_ENTER = (
+    'var ke = new KeyboardEvent("keydown", {'
+    'bubbles: true, cancelable: true, keyCode: 13});'
+    'arguments[0].dispatchEvent(ke);'
+)
+
+DISPATCH_ENTER_SELECTOR = (
+    "var ke = new KeyboardEvent('keydown', \{"
+    "   bubbles: true, cancelable: true, keyCode: 13"
+    "\});"
+    "{selector}.dispatchEvent(ke);"
+)
+
+DISPLAY_VALUES = (
+    'none',
+    'inline',
+    'block',
+    'inline-block'
+    'hidden',
+    '',
+)
+
+def selector(value, by) -> dict[str, str]:
+    return {
+        "value": value,
+        "by": by
+    }
+
+def document_query_selector(selector_str: str) -> str:
+    """String to be parsed to javascript code."""
+    return f"return document.querySelector('{selector_str}');"
+
+
+def document_query_selector_all(selector_str: str) -> str:
+    """String to be parsed to javascript code."""
+    return f"return document.querySelectorAll('{selector_str}');"
+
+
+def document_query_selector_click(selector_str: str) -> str:
+    """String to be parsed to javascript code."""
+    element = document_query_selector(selector_str=selector_str)
+    return (
+        f"const element = {element};"
+        "element.click();"
+        "return element;"
+    )
+
+def is_display(
+        value: str, element: WebElement = None
+) -> str | tuple[str, WebElement]:
+    if value not in DISPLAY_VALUES:
+        raise ValueError(
+            f'Invalid display value "{value}". Valid are {DISPLAY_VALUES}.'
+        )
+    script = f"return arguments[0].style.display == '{value}';"
+    if element is None:
+        return script
+    return script, element
+
+def set_attribute(attribute: str, value: str, element: WebElement = None):
+    script = f"return arguments[0].setAttribute('{attribute}', '{value}');"
+    if element is None:
+        return script
+    return script, element

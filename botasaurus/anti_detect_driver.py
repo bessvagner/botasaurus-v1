@@ -1,6 +1,5 @@
 import logging
 import traceback
-from selenium.common.exceptions import StaleElementReferenceException
 from bs4 import BeautifulSoup
 from datetime import datetime
 from random import uniform
@@ -10,12 +9,17 @@ from typing import Callable
 
 from selenium import webdriver
 from selenium.webdriver import Chrome
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.common.exceptions import (
+    StaleElementReferenceException,
+    JavascriptException,
+    NoSuchElementException,
+    TimeoutException,
+)
 
 from .output import is_slash_not_in_filename
 
@@ -23,7 +27,18 @@ from .decorators_utils import create_directory_if_not_exists
 from .beep_utils import beep_input
 from .local_storage_driver import LocalStorage
 from .opponent import Opponent
-from .utils import read_file, relative_path, sleep_for_n_seconds, sleep_forever
+from .utils import (
+    read_file,
+    relative_path,
+    sleep_for_n_seconds,
+    sleep_forever,
+    document_query_selector,
+    document_query_selector_all,
+    is_display,
+    set_attribute,
+    DISPATCH_ENTER,
+    DISPATCH_ENTER_SELECTOR,
+)
 from .wait import Wait
 from .driver_about import AboutBrowser
 from .accept_google_cookies import accept_google_cookies
@@ -1027,4 +1042,553 @@ class AntiDetectDriver(Chrome):
             timeout=timeout,
             poll_frequency=poll_frequency,
             ignored_exceptions=ignored_exceptions,
+        )
+
+    def click_element(
+        self,
+        element: WebElement,
+        *,
+        expected_condition=EC.element_to_be_clickable,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException,)
+    ):
+        """
+        Clicks on the specified web element after waiting for it to be
+        clickable.
+
+        Parameters
+        ----------
+        element : WebElement
+            The web element to click on.
+        expected_condition : Callable, default EC.element_to_be_clickable
+            The expected condition to wait for before clicking the element.
+        timeout : int, optional
+            The maximum time to wait for the condition to be met. If not
+            specified, the default timeout is used.
+        poll_frequency : float, default 0.5
+            The frequency at which the condition is checked, in seconds.
+        ignored_exceptions : tuple, default (NoSuchElementException,)
+            Exceptions to ignore while waiting for the condition.
+
+        """
+        if element is None:
+            return None
+        wait = self.wait(timeout, poll_frequency, ignored_exceptions)
+        try:
+            wait.until(expected_condition(element)).click()
+            return element
+        except TimeoutException:
+            return None
+
+    def click(
+        self,
+        *,
+        value: str,
+        by="id",
+        expected_condition_element=EC.presence_of_element_located,
+        expected_condition_click=EC.element_to_be_clickable,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException,)
+    ):
+        """
+        Finds an element on the web page using the specified locator strategy
+        and waits until the element is present, then clicks on it.
+
+        Parameters
+        ----------
+        value : str
+            The value to search for, such as the ID, name, or XPath of the
+            element.
+        by : str, default "id"
+            The locator strategy to use, such as "id", "name", "xpath", etc.
+        expected_condition_element : Callable, default EC.presence_of_element_located  # noqa E501
+            The expected condition to wait for, such as the presence of the
+            element.
+        expected_condition_click : Callable, default EC.element_to_be_clickable
+            The expected condition to wait for before clicking the element.
+        timeout : int, optional
+            The maximum time to wait for the condition to be met. If not
+            specified, the default timeout is used.
+        poll_frequency : float, default 0.5
+            The frequency at which the condition is checked, in seconds.
+        ignored_exceptions : tuple, default (NoSuchElementException,)
+            Exceptions to ignore while waiting for the condition.
+
+
+        """
+        element = self.find(
+            value=value,
+            by=by,
+            expected_condition=expected_condition_element,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions
+        )
+        return self.click_element(
+            element,
+            expected_condition=expected_condition_click,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions
+        )
+
+    def send_arrow(
+        self,
+        element: WebElement,
+        *,
+        direction: str = 'down',
+        n_times: int = 1,
+        enter=False,
+        expected_condition=EC.element_to_be_clickable,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException,)
+    ):
+        """
+        Sends the an arrow key to the specified web element the specified
+        number of times and optionally presses Enter.
+
+        Parameters
+        ----------
+        element : WebElement
+            The web element to send the down arrow key to.
+        n_times : int, default 1
+            The number of times to send the down arrow key.
+        enter : bool, default False
+            Whether to press the Enter key after sending the down arrow key.
+        expected_condition : Callable, default EC.element_to_be_clickable
+            The expected condition to wait for before sending the keys.
+        timeout : int, optional
+            The maximum time to wait for the condition to be met. If not
+            specified, the default timeout is used.
+        poll_frequency : float, default 0.5
+            The frequency at which the condition is checked, in seconds.
+        ignored_exceptions : tuple, default (NoSuchElementException,)
+            Exceptions to ignore while waiting for the condition.
+
+        Raises
+        ------
+        TimeoutException
+            If the condition is not met within the specified timeout.
+        """
+        direction = direction.lower()
+        key = None
+        match direction:
+            case 'down': key = Keys.DOWN
+            case 'left': key = Keys.LEFT 
+            case 'up': key = Keys.UP 
+            case 'right': key = Keys.RIGHT
+            case _:
+                logger.warning("Invalid arrow key %s.", direction)
+                return None
+        wait = self.wait(timeout, poll_frequency, ignored_exceptions)
+        try:
+            for _ in range(n_times):
+                wait.until(expected_condition(element)).send_keys(key)
+                self.random_sleep(0.2, 0.7)
+            if enter:
+                wait.until(expected_condition(element)).send_keys(Keys.RETURN)
+        except TimeoutException:
+            return None
+        return element
+
+    def send_arrow_left(
+        self,
+        element: WebElement,
+        *,
+        n_times: int = 1,
+        enter=False,
+        expected_condition=EC.element_to_be_clickable,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException,)
+    ):
+        """
+            Same as `AntiDetectDriver.send_arrow`, with `direction='left'`.
+        """
+        return self.send_arrow(
+            element,
+            direction='left',
+            n_times=n_times,
+            enter=enter,
+            expected_condition=expected_condition,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions,
+        )
+
+    def send_arrow_up(
+        self,
+        element: WebElement,
+        *,
+        n_times: int = 1,
+        enter=False,
+        expected_condition=EC.element_to_be_clickable,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException,)
+    ):
+        """
+            Same as `AntiDetectDriver.send_arrow`, with `direction='up'`.
+        """
+        return self.send_arrow(
+            element,
+            direction='up',
+            n_times=n_times,
+            enter=enter,
+            expected_condition=expected_condition,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions,
+        )
+
+    def send_arrow_right(
+        self,
+        element: WebElement,
+        *,
+        n_times: int = 1,
+        enter=False,
+        expected_condition=EC.element_to_be_clickable,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException,)
+    ):
+        """
+            Same as `AntiDetectDriver.send_arrow`, with `direction='right'`.
+        """
+        return self.send_arrow(
+            element,
+            direction='right',
+            n_times=n_times,
+            enter=enter,
+            expected_condition=expected_condition,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions,
+        )
+
+    def send_arrow_down(
+        self,
+        element: WebElement,
+        *,
+        n_times: int = 1,
+        enter=False,
+        expected_condition=EC.element_to_be_clickable,
+        timeout=None,
+        poll_frequency=0.5,
+        ignored_exceptions=(NoSuchElementException,)
+    ):
+        """
+            Same as `AntiDetectDriver.send_arrow`, with `direction='down'`.
+        """
+        return self.send_arrow(
+            element,
+            direction='down',
+            n_times=n_times,
+            enter=enter,
+            expected_condition=expected_condition,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions,
+        )
+
+    def soup_of(
+        self,
+        element: WebElement,
+        *,
+        parser="html.parser",
+        features="lxml",
+        outer=True,
+        **kwargs
+    ):
+        """
+        Parses the inner or outer HTML of the specified web element using
+        BeautifulSoup.
+
+        Parameters
+        ----------
+        element : WebElement
+            The web element to parse.
+        parser : str, default "html.parser"
+            The parser to use for parsing the HTML.
+        features : str, default "lxml"
+            The features to use for parsing the HTML. NOTE: if module lxml is
+            ot installed, `features` will be set to 'html.parser'.
+        outer : bool, default True
+            Whether to parse the outer HTML of the element. If False, the inner
+            HTML is parsed.
+        **kwargs : dict
+            Additional keyword arguments to pass to the BeautifulSoup
+            constructor.
+
+        Returns
+        -------
+        BeautifulSoup
+            A BeautifulSoup object representing the parsed HTML of the element.
+        """
+        type_attribute = "innerHTML"
+        if outer:
+            type_attribute = "outerHTML"
+
+        try:
+            from lxml import __version__ as __
+        except (ImportError, ModuleNotFoundError):
+            features = 'html.parser'
+        return BeautifulSoup(
+            element.get_attribute(type_attribute),
+            parser=parser,
+            features=features,
+            **kwargs
+        )
+
+    def make_soup(self, parser="html.parser", features="lxml", **kwargs):
+        """
+        Parses the current page source using BeautifulSoup with the specified
+        parser.
+
+        Parameters
+        ----------
+        parser : str, default "html.parser"
+            The parser to use for parsing the HTML.
+        **kwargs : dict
+            Additional keyword arguments to pass to the BeautifulSoup
+            constructor.
+
+        Returns
+        -------
+        BeautifulSoup
+            A BeautifulSoup object representing the parsed HTML of the current
+            page.
+        """
+        try:
+            from lxml import __version__ as __
+        except (ImportError, ModuleNotFoundError):
+            features = 'html.parser'
+        return BeautifulSoup(
+            self.page_source, parser=parser, features=features, **kwargs
+        )
+
+    def run(self, script, *args):
+        """
+        Executes the specified JavaScript script on the web page.
+
+        Parameters
+        ----------
+        script : str
+            The JavaScript script to execute.
+        *args : tuple
+            Arguments to pass to the JavaScript script.
+
+        Returns
+        -------
+        Any
+            The result of the script execution.
+        """
+        try:
+            return self.execute_script(script, *args)
+        except JavascriptException as err:
+            logger.error(err)
+            logger.warning("Driver failed running script")
+            return None
+
+    def run_async(self, script, *args):
+        """
+        Executes the specified JavaScript script on the web page asynchronously
+
+        Parameters
+        ----------
+        script : str
+            The JavaScript script to execute.
+        *args : tuple
+            Arguments to pass to the JavaScript script.
+
+        Returns
+        -------
+        Any
+            The result of the script execution.
+        """
+        try:
+            return self.execute_async_script(script, *args)
+        except JavascriptException as err:
+            logger.error(err)
+            logger.warning("Driver failed running script")
+            return None
+
+    def query_selector(self, selector: str):
+        """
+        Executes a JavaScript query selector on the web page and returns the
+        first matching element.
+
+        Parameters
+        ----------
+        selector : str
+            The CSS selector to use for querying the web page.
+
+        Returns
+        -------
+        WebElement
+            The first matching element found by the query selector.
+        """
+        script = document_query_selector(selector)
+        return self.run(script)
+
+    def query_selector_all(self, selector: str):
+        """
+        Executes a JavaScript query selector on the web page and returns all
+        matching elements.
+
+        Parameters
+        ----------
+        selector : str
+            The CSS selector to use for querying the web page.
+
+        Returns
+        -------
+        list[WebElement]
+            A list of all matching elements found by the query selector.
+        """
+        script = document_query_selector_all(selector)
+        return self.run(script)
+
+    def dispatch_enter(self, element: WebElement):
+        """
+        Dispatches an 'Enter' key event to the specified web element.
+
+        Parameters
+        ----------
+        element : WebElement
+            The web element to dispatch the 'Enter' key event to.
+
+        Returns
+        -------
+        Any
+            The result of the dispatched event.
+        """
+        return self.run(DISPATCH_ENTER, element)
+
+    def dispatch_enter_selector(self, selector: str):
+        """
+        Dispatches an 'Enter' key event to the first element matching the
+        specified CSS selector.
+
+        Parameters
+        ----------
+        selector : str
+            The CSS selector to use for querying the web page.
+
+        Returns
+        -------
+        Any
+            The result of the dispatched event.
+        """
+        return self.run(DISPATCH_ENTER_SELECTOR.format(selector))
+
+    def is_display(self, element: WebElement, value: str):
+        """
+        Checks if the specified web element is displayed with the given display
+        value.
+
+        Parameters
+        ----------
+        element : WebElement
+            The web element to check the display property of.
+        value : str
+            The display value to check against, such as "block", "none", etc.
+
+        Returns
+        -------
+        bool
+            True if the element is displayed with the given value, False
+            otherwise.
+        """
+        return self.run(is_display(value), element)
+
+    def set_attribute_to(self,
+                         element: WebElement,
+                         *,
+                         attribute: str,
+                         value: str):
+        """
+        Sets the specified attribute of a web element to a given value.
+
+        This method uses JavaScript to set the attribute of the provided web element.
+
+        Parameters
+        ----------
+        element : WebElement
+            The web element whose attribute is to be set.
+        attribute : str
+            The name of the attribute to be set.
+        value : str
+            The value to be assigned to the attribute.
+
+        Returns
+        -------
+        Any
+            The result of the JavaScript execution, which is typically the value set.
+
+        """
+        return self.run(set_attribute(attribute, value), element)
+
+    def set_attribute(self,
+                      element: WebElement,
+                      *,
+                      value: str,
+                      by: str = "id",
+                      expected_condition: Callable = EC.presence_of_all_elements_located,
+                      timeout: bool = None,
+                      poll_frequency: float = 0.5,
+                      ignored_exceptions=(NoSuchElementException,),
+                      attribute: str,
+                      attr_value: str):
+        """
+        Sets the specified attribute of a web element to a given value after locating the element.
+
+        This method first locates the web element using the provided locator strategy (`by`),
+        waits for the element to be present, and then sets the specified attribute to the given value.
+
+        Parameters
+        ----------
+        element : WebElement
+            The web element whose attribute is to be set.
+        value : str
+            The value to search for, such as the ID, name, or XPath of the element.
+        by : str, default "id"
+            The locator strategy to use, such as "id", "name", "xpath", etc.
+        expected_condition : Callable, default EC.presence_of_all_elements_located
+            The expected condition to wait for before setting the attribute.
+        timeout : int, optional
+            The maximum time to wait for the condition to be met. If not specified,
+            the default timeout is used.
+        poll_frequency : float, default 0.5
+            The frequency at which the condition is checked, in seconds.
+        ignored_exceptions : tuple, default (NoSuchElementException,)
+            Exceptions to ignore while waiting for the condition.
+        attribute : str
+            The name of the attribute to be set.
+        attr_value : str
+            The value to be assigned to the attribute.
+
+        Returns
+        -------
+        Any
+            The result of the JavaScript execution, which is typically the value set.
+        """
+        element = self.find(
+            value=value,
+            by=by,
+            expected_condition=expected_condition,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions,
+        )
+        if element:
+            return self.set_attribute_to(
+                set_attribute(attribute, attr_value), element
+            )
+        logger.warning(
+            "Unable to locate element by %s with value %s",
+            by, value
         )
