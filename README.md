@@ -790,7 +790,7 @@ Or, Let's say you're in the mood for some reading and looking for good stories, 
 from botasaurus import *
 from botasaurus.sitemap import Sitemap, Filters
 
-sitemaps = (
+links = (
     Sitemap("https://moralstories26.com/")
     .filter(
         Filters.has_exactly_1_segment(),
@@ -801,7 +801,7 @@ sitemaps = (
     .links()
 )
 
-bt.write_temp_json(sitemaps)
+bt.write_temp_json(links)
 ```
 
 **Output:** 
@@ -1220,17 +1220,18 @@ if __name__ == "__main__":
 Utilize the `keep_drivers_alive` option to maintain active driver sessions. Remember to call `.close()` when you're finished to release resources:
 
 ```python
+from botasaurus import *
+from botasaurus.create_stealth_driver import create_stealth_driver
+
 @browser(
     keep_drivers_alive=True, 
-    parallel=bt.calc_max_parallel_browsers,  # Typically used with `keep_drivers_alive`
     reuse_driver=True,  # Also commonly paired with `keep_drivers_alive`
 )
-def scrape_data(driver: AntiDetectDriver, data):
-    # ... (Your scraping logic here)
+def scrape_data(driver: AntiDetectDriver, link):
+    driver.get(link)
 
 if __name__ == "__main__":
-    for i in range(3):
-        scrape_data()
+    scrape_data(["https://moralstories26.com/", "https://moralstories26.com/page/2/", "https://moralstories26.com/page/3/"])
     # After completing all scraping tasks, call .close() to close the drivers.
     scrape_data.close()
 ```
@@ -1346,7 +1347,7 @@ Become one of our amazing stargazers by giving us a star ⭐ on GitHub!
 It's just one click, but it means the world to me.
 
 <a href="https://github.com/omkarcloud/botasaurus/stargazers">
-    <img src="https://bytecrank.com/nastyox/reporoster/php/stargazersSVG.php?user=omkarcloud&repo=botasaurus" style="width: 50%;" alt="Stargazers for @omkarcloud/botasaurus">
+    <img src="https://bytecrank.com/nastyox/reporoster/php/stargazersSVG.php?user=omkarcloud&repo=botasaurus" alt="Stargazers for @omkarcloud/botasaurus">
 </a>
 
 ## Sponsors
