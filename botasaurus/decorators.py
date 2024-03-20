@@ -29,10 +29,12 @@ from .cache import (
 )
 
 from .create_driver_utils import (
+    add_server_args,
     block_resources_if_should,
     create_about,
     create_capabilities,
     create_options_and_driver_attributes_and_close_proxy,
+    is_server_mode,
     load_cookies,
     save_cookies,
     create_selenium_driver,
@@ -291,6 +293,9 @@ def update_options(data, options, add_arguments, extensions):
                 ]
             )
             options.add_argument("--load-extension=" + extensions_str)
+
+    if is_server_mode():
+        add_server_args(options)
 
     if add_arguments:
         if callable(add_arguments):
@@ -989,7 +994,9 @@ def request(
         elif async_queue:
 
             @wraps(func)
-            def async_wrapper(**wrapper_kwargs):
+            def async_wrapper(*args, **wrapper_kwargs):
+                if args:
+                  raise ValueError('When using "async_queue", data must be passed via ".put".')
                 task_queue = Queue()
                 result_list = []
                 orginal_data = []
