@@ -5,7 +5,7 @@ from datetime import datetime
 from random import uniform
 from time import sleep
 from traceback import print_exc
-from typing import Callable
+from typing import Callable, List
 
 from selenium import webdriver
 from selenium.webdriver import Chrome
@@ -681,8 +681,8 @@ class AntiDetectDriver(Chrome):
 
     def xpath(
         self,
-        *,
         value: str,
+        *,
         expected_condition: Callable = EC.presence_of_all_elements_located,
         timeout: bool = None,
         poll_frequency: float = 0.5,
@@ -891,7 +891,7 @@ class AntiDetectDriver(Chrome):
             return None
         try:
             return wait.until(
-                lambda: element.find_element(ATTR_SELECTOR[by], value),
+                lambda _: element.find_element(ATTR_SELECTOR[by], value),
                 f"Failed finding child of {element}"
             )
         except TimeoutException as err:
@@ -1085,8 +1085,8 @@ class AntiDetectDriver(Chrome):
 
     def click(
         self,
-        *,
         value: str,
+        *,
         by="id",
         expected_condition_element=EC.presence_of_element_located,
         expected_condition_click=EC.element_to_be_clickable,
@@ -1535,16 +1535,15 @@ class AntiDetectDriver(Chrome):
         return self.run(set_attribute(attribute, value), element)
 
     def set_attribute(self,
-                      element: WebElement,
                       *,
+                      attribute: str,
+                      attr_value: str,
                       value: str,
                       by: str = "id",
                       expected_condition: Callable = EC.presence_of_all_elements_located,
                       timeout: bool = None,
                       poll_frequency: float = 0.5,
-                      ignored_exceptions=(NoSuchElementException,),
-                      attribute: str,
-                      attr_value: str):
+                      ignored_exceptions=(NoSuchElementException,),):
         """
         Sets the specified attribute of a web element to a given value after locating the element.
 
@@ -1588,11 +1587,51 @@ class AntiDetectDriver(Chrome):
         )
         if element:
             return self.set_attribute_to(
-                set_attribute(attribute, attr_value), element
+                element, attribute=attribute, value=attr_value
             )
         logger.warning(
             "Unable to locate element by %s with value %s",
             by, value
+        )
+
+    def set_class(self,
+                  *,
+                  class_list: str | List[str],
+                  value: str,
+                  by: str = "id",
+                  expected_condition: Callable = EC.presence_of_all_elements_located,  # noqa E501
+                  timeout: bool = None,
+                  poll_frequency: float = 0.5,
+                  ignored_exceptions=(NoSuchElementException,),):
+        """
+        Sets the specified class to a web element.
+        """
+        if isinstance(class_list, list):
+            class_list = ' '.join(class_list)
+        return self.set_attribute(
+            attribute='class',
+            attr_value=class_list,
+            value=value,
+            by=by,
+            expected_condition=expected_condition,
+            timeout=timeout,
+            poll_frequency=poll_frequency,
+            ignored_exceptions=ignored_exceptions,
+        )
+
+    def set_class_to(self,
+                     element: WebElement,
+                     *,
+                     class_list: str | List[str],):
+        """
+        Sets the specified class to a web element.
+        """
+        if isinstance(class_list, list):
+            class_list = ' '.join(class_list)
+        return self.set_attribute_to(
+            element,
+            attribute='class',
+            value=class_list,
         )
 
     def tab_handle(self):
