@@ -25,6 +25,23 @@ logger = logging.getLogger()
 
 
 def split_image(img: Image, x, y):
+    """
+    Splits an image into a grid of tiles.
+
+    Parameters
+    ----------
+    img : Image
+        The image to be split.
+    x : int
+        The number of columns in the grid.
+    y : int
+        The number of rows in the grid.
+
+    Returns
+    -------
+    List[List[Image]]
+        A list of lists containing the tiles of the image.
+    """
     # Open the image
     width, height = img.size
 
@@ -52,6 +69,22 @@ def split_image(img: Image, x, y):
     return tiles_matrix
 
 def random_sleep_interval(minimum: Number, maximum: Number) -> float:
+    """
+    Generates a random sleep interval between the specified minimum and
+    maximum values.
+
+    Parameters
+    ----------
+    minimum : Number
+        The minimum value for the sleep interval.
+    maximum : Number
+        The maximum value for the sleep interval.
+
+    Returns
+    -------
+    float
+        A random float between the minimum and maximum values.
+    """
     return (maximum - minimum)*random.random() + minimum
 
 def sleep(driver: AntiDetectDriver,
@@ -63,11 +96,65 @@ def flip_coin():
     return random.choice((False, True))
 
 def go_to_challenge_frame(driver: AntiDetectDriver):
+    """
+    Switches the driver's focus to the challenge frame within a web page.
+
+    This function first switches the driver's focus to the default content of
+    the page, then finds all iframe elements on the page, and finally switches
+    the driver's focus to the third iframe found. This is typically used in web
+    scraping or automation tasks where the challenge frame is the target for
+    interaction.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for switching focus.
+
+    Returns
+    -------
+    None
+        This function does not return any value.
+
+    Notes
+    -----
+    This function assumes that the third iframe on the page is the challenge
+    frame. If the structure of the web page changes, this function may need to
+    be updated.
+    """
     driver.switch_to.default_content()
     frames = driver.find_all('iframe', by='tag name')
     driver.switch_to.frame(frames[2])
 
 def reload_challenge(driver: AntiDetectDriver):
+    """
+    Reloads the captcha challenge by clicking the reload button.
+
+    This function navigates to the challenge frame, attempts to click the
+    reload button, and then navigates back to the challenge frame. It is useful
+    for refreshing the captcha challenge in case the initial challenge was
+    not solvable or to attempt a new challenge.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for interacting with the captcha.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    This function assumes that the reload button can be found by the selector
+    'recaptcha-reload-button'. If the structure of the web page changes,
+    this function may need to be updated.
+
+    Exceptions
+    ----------
+    ElementClickInterceptedException
+        If the reload button cannot be clicked due to another element
+        overlaying it.
+    """
     go_to_challenge_frame(driver)
     try:
         driver.find('recaptcha-reload-button').click()
@@ -76,6 +163,25 @@ def reload_challenge(driver: AntiDetectDriver):
     go_to_challenge_frame(driver)
 
 def get_image(url):
+    """
+    Downloads an image from a given URL and returns it as a PIL Image object.
+
+    Parameters
+    ----------
+    url : str
+        The URL of the image to download.
+
+    Returns
+    -------
+    PIL.Image.Image or None
+        The downloaded image as a PIL Image object, or None if the download
+        fails.
+
+    Notes
+    -----
+    This function logs the start of the download and the success of the
+    download.
+    """
     logger.info("Downloading captcha image: %s", url)
     response = requests.get(url, timeout=20)
     img = None
@@ -85,6 +191,38 @@ def get_image(url):
     return img
 
 def get_tiles_data(driver: AntiDetectDriver) -> Tuple[List[BeautifulSoup], int, int, float]:  # noqa E501
+    """
+    Extracts data from the captcha tiles on a webpage.
+
+    This function navigates to the challenge frame of a webpage, locates the
+    captcha tiles, and extracts relevant data such as the rows of tiles, the
+    number of rows and columns, and the URL of the image used in the captcha.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for interacting with the webpage.
+
+    Returns
+    -------
+    tuple
+        A tuple containing:
+        - A list of BeautifulSoup objects representing the rows of tiles.
+        - The number of rows in the captcha grid.
+        - The number of columns in the captcha grid.
+        - The URL of the image used in the captcha.
+
+    Raises
+    ------
+    RuntimeError
+        If the image grid cannot be selected.
+
+    Notes
+    -----
+    This function assumes that the captcha tiles are located within a table
+    element with a class containing "rc-imageselect-table". If the structure
+    of the webpage changes, this function may need to be updated.
+    """
     go_to_challenge_frame(driver)
     xpath = '//table[contains(@class, "rc-imageselect-table")]'
     table = driver.xpath(xpath)
@@ -103,6 +241,30 @@ def get_tiles_data(driver: AntiDetectDriver) -> Tuple[List[BeautifulSoup], int, 
 
 
 async def ask(idx, image, prompt):
+    """
+    Asynchronously asks a model to guess a tile based on an image and a prompt.
+
+    Parameters
+    ----------
+    idx : int
+        The index of the tile to be guessed.
+    image : Union[str, Path, Image.Image]
+        The image to analyze. Can be a file path as a string, a Path object, or
+        an Image.Image object.
+    prompt : str
+        An optional prompt to guide the response.
+
+    Returns
+    -------
+    str
+        The generated response content based on the image and prompt.
+
+    Notes
+    -----
+    This function uses the AsyncGoogleVision class to generate a response.
+    It logs the attempt to guess the tile and the model's response.
+    TODO: Allow the use of other models (APIs).
+    """
     logger.info("Trying to guess tile %s", idx)
     # TODO: allow the use of other models (APIs)
     response = await AsyncGoogleVision().answer(image, prompt)
@@ -111,6 +273,32 @@ async def ask(idx, image, prompt):
 
 async def get_guess_mask(target: str,
                          tiles_images: List[Image.Image]) -> List[bool]:
+    """
+    Asynchronously generates a mask indicating which tiles are guessed to be
+    correct based on the target and images.
+
+    This function iterates over each tile image, asks a model to guess if the
+    tile is correct based on the target and the image, and appends the result
+    to a mask.
+
+    Parameters
+    ----------
+    target : str
+        The target string to be used in the prompt for guessing the tiles.
+    tiles_images : List[Image.Image]
+        A list of PIL Image objects representing the tiles to be guessed.
+
+    Returns
+    -------
+    List[bool]
+        A list of boolean values indicating which tiles are guessed to be
+        correct.
+
+    Notes
+    -----
+    This function uses the `ask` function to asynchronously ask a model to
+    guess each tile.
+    """
     mask = []
     prompt = PROMPT_GUESS_IMAGE.format(target)
     for idx, tile_row in enumerate(tiles_images):
@@ -133,23 +321,72 @@ async def get_guess_mask(target: str,
     return mask
 
 def detected_captcha(driver: AntiDetectDriver):
+    """
+    Checks if a captcha challenge has been detected on the webpage.
+
+    This function switches the driver's focus to the default content of the
+    page, finds all iframe elements on the page, and checks if the first
+    iframe's title contains the string 'reCAPTCHA'. If so, it returns True,
+    indicating that a captcha challenge has been detected.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for interacting with the webpage.
+
+    Returns
+    -------
+    bool
+        True if a captcha challenge is detected, False otherwise.
+
+    Notes
+    -----
+    This function assumes that the captcha challenge is contained within an
+    iframe.
+    If the structure of the webpage changes, this function may need to be
+    updated.
+    """
     driver.switch_to.default_content()
-    # rc_anchor = driver.find('rc-anchor-container')
-    # 'recaptcha-checkbox goog-inline-block recaptcha-checkbox-unchecked rc-anchor-checkbox recaptcha-checkbox-expired'
-    # 'recaptcha-checkbox goog-inline-block recaptcha-checkbox-unchecked rc-anchor-checkbox'
-    # 'recaptcha-checkbox goog-inline-block recaptcha-checkbox-unchecked rc-anchor-checkbox recaptcha-checkbox-checked'
     frames = driver.find_all('iframe', by='tag name')
     if frames and len(frames) > 1:
         return 'reCAPTCHA' in frames[0].get_attribute('title')
     return False
 
 def was_solved(driver: AntiDetectDriver):
+    """
+    Checks if the reCAPTCHA challenge has been solved.
+
+    This function switches the driver's focus to the default content, then to
+    the reCAPTCHA iframe, and checks if the reCAPTCHA checkbox has been checked.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for interacting with the webpage.
+
+    Returns
+    -------
+    bool
+        True if the reCAPTCHA challenge has been solved, False otherwise.
+    """
     driver.switch_to.default_content()
     driver.switch_to_frame(value="//iframe[@title='reCAPTCHA']", by='xpath')
     rc_anchor = driver.find('recaptcha-anchor')
     return 'recaptcha-checkbox-checked' in rc_anchor.get_attribute('class')
 
 def click_captcha_checkbox(driver: AntiDetectDriver):
+    """
+    Clicks the reCAPTCHA checkbox to start the challenge.
+
+    This function switches the driver's focus to the default content, then to
+    the reCAPTCHA iframe, and attempts to click the reCAPTCHA checkbox. If the
+    click is intercepted, it reloads the challenge.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for interacting with the webpage.
+    """
     driver.switch_to.default_content()
     driver.switch_to_frame(value="//iframe[@title='reCAPTCHA']", by='xpath')
     recaptcha_anchor = driver.find('recaptcha-anchor')
@@ -165,6 +402,32 @@ def click_captcha_checkbox(driver: AntiDetectDriver):
         reload_challenge(driver)
 
 def get_rows_and_tiles_and_image_url(driver):
+    """
+    Retrieves the rows of tiles, the tiles themselves, and the image URL from
+    a captcha challenge.
+
+    This function extracts the necessary data from the captcha challenge on a
+    webpage, including the rows of tiles, the tiles as images, and the URL of
+    the image used in the captcha.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for interacting with the webpage.
+
+    Returns
+    -------
+    tuple
+        A tuple containing:
+        - A list of BeautifulSoup objects representing the rows of tiles.
+        - A list of lists containing the tiles of the image.
+        - The URL of the image used in the captcha.
+
+    Notes
+    -----
+    If the image cannot be retrieved, the function logs a warning, reloads the
+    challenge, and returns None for the image-related values.
+    """
     rows, n_rows, n_cols, image_url = get_tiles_data(driver)
     img = get_image(image_url)
     if not img:
@@ -176,7 +439,34 @@ def get_rows_and_tiles_and_image_url(driver):
     return rows, tiles, image_url
 
 async def get_rows_and_mask_and_target_and_image_url(driver: AntiDetectDriver):
+    """
+    Asynchronously retrieves the rows of tiles, a mask indicating the correct 
+    iles, the target object text, and the image URL from a captcha challenge.
 
+    This function calls `get_rows_and_tiles_and_image_url` to get the necessary
+    data, then uses the `get_guess_mask` function to generate a mask indicating
+    which tiles are guessed to be correct based on the target and images.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for interacting with the webpage.
+
+    Returns
+    -------
+    tuple
+        A tuple containing:
+        - A list of BeautifulSoup objects representing the rows of tiles.
+        - A list of boolean values indicating which tiles are guessed to be
+        correct.
+        - The text of the target object.
+        - The URL of the image used in the captcha.
+
+    Notes
+    -----
+    If the tiles cannot be retrieved, the function returns None for the tiles
+    and mask.
+    """
     rows, tiles, image_url = get_rows_and_tiles_and_image_url(driver)
     target_object = driver.find(
         '//div[contains(@class, "rc-imageselect-desc")]//strong',
@@ -188,6 +478,25 @@ async def get_rows_and_mask_and_target_and_image_url(driver: AntiDetectDriver):
     return rows, mask, target_object.text, image_url
 
 def check_tile(driver: AntiDetectDriver, tabindex: int):
+    """
+    Checks a captcha tile by changing its class and clicking the checkbox.
+
+    This function finds the tile element by its tabindex, changes its class to
+    indicate it is selected, and clicks the checkbox within the tile to select
+    it.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for interacting with the webpage.
+    tabindex : int
+        The tabindex of the tile to be checked.
+
+    Returns
+    -------
+    WebElement
+        The tile element that was checked.
+    """
     tile_element = driver.find(
         f"//td[@tabindex='{tabindex}']", by='xpath'
     )
@@ -205,6 +514,25 @@ def check_tile(driver: AntiDetectDriver, tabindex: int):
     return tile_element
 
 def uncheck_tile(driver: AntiDetectDriver, tabindex: int):
+    """
+    Unchecks a captcha tile by changing its class and clicking the checkbox.
+
+    This function finds the tile element by its tabindex, changes its class to
+    indicate it is not selected, and clicks the checkbox within the tile to
+    deselect it.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for interacting with the webpage.
+    tabindex : int
+        The tabindex of the tile to be unchecked.
+
+    Returns
+    -------
+    WebElement
+        The tile element that was unchecked.
+    """
     tile_element = driver.find(
         f"//td[@tabindex='{tabindex}']", by='xpath'
     )
@@ -223,6 +551,23 @@ def uncheck_tile(driver: AntiDetectDriver, tabindex: int):
     return tile_element
 
 def click_verify(driver: AntiDetectDriver):
+    """
+    Clicks the 'verify' button on the captcha challenge page.
+
+    This function switches the driver's focus to the challenge frame, attempts
+    to click the 'verify' button, and returns True if the click is successful.
+    If the click is intercepted, it returns False.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for interacting with the webpage.
+
+    Returns
+    -------
+    bool
+        True if the 'verify' button was clicked successfully, False otherwise.
+    """
     go_to_challenge_frame(driver)
     try:
         driver.click('recaptcha-verify-button')
@@ -235,6 +580,30 @@ def click_verify(driver: AntiDetectDriver):
 async def check_changed_tile(driver: AntiDetectDriver,
                              target: str,
                              table_data: BeautifulSoup):
+    """
+    Checks if a captcha tile has changed and performs a click action
+    accordingly.
+
+    This function attempts to guess the image of a tile and performs a click
+    action if the uess is correct. If the tile is already selected and the
+    guess is incorrect, or if the tile is not selected and the guess is
+    correct, it performs the opposite action.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for interacting with the webpage.
+    target : str
+        The target string to be used in the prompt for guessing the tiles.
+    table_data : BeautifulSoup
+        The BeautifulSoup object containing the data of the table, including
+        the tile's image.
+
+    Returns
+    -------
+    None
+        This function does not return any value.
+    """
     """Try to guess image and perform click"""
     img = get_image(table_data.img.attrs['src'])
     mask = await get_guess_mask(target, [[img]])
@@ -248,8 +617,25 @@ async def check_changed_tile(driver: AntiDetectDriver,
         uncheck_tile(driver, tabindex)
 
 async def reperform_guess(driver, target, image_url):
-    """Images can change while trying to solve challenge.
-    This method redo the 'guessing' procedure for the new tiles
+    """
+    Repeats the 'guessing' procedure for new tiles in a captcha challenge.
+
+    This method scans all images, checks for changes, and performs a click
+    action accordingly. It continues to scan until no changes are detected.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for interacting with the webpage.
+    target : str
+        The target string to be used in the prompt for guessing the tiles.
+    image_url : str
+        The URL of the image used in the captcha.
+
+    Returns
+    -------
+    None
+        This function does not return any value.
     """
 
     # First scan on all images
@@ -281,6 +667,29 @@ async def reperform_guess(driver, target, image_url):
                 break
 
 async def perform_guess(driver):
+    """
+    Performs a guessing procedure for the captcha tiles.
+
+    This function retrieves the rows of tiles, a mask indicating the correct
+    tiles, the target object text, and the image URL from a captcha challenge.
+    It then checks or unchecks the tiles based on the mask and performs a
+    click action if there are tile changes.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for interacting with the webpage.
+
+    Returns
+    -------
+    tuple
+        A tuple containing:
+        - A list of BeautifulSoup objects representing the rows of tiles.
+        - A list of boolean values indicating which tiles are guessed to be
+        correct.
+        - The text of the target object.
+        - The URL of the image used in the captcha.
+    """
     (
         rows, mask, target, image_url
     ) = await get_rows_and_mask_and_target_and_image_url(driver)
@@ -306,7 +715,32 @@ async def perform_guess(driver):
     return rows, mask, target, image_url
 
 async def solve_recaptcha2(driver: AntiDetectDriver):
+    """
+    Attempts to solve a reCAPTCHA v2 challenge on a webpage.
 
+    This function checks if a captcha challenge is detected, clicks the captcha
+    checkbox to start the challenge, and then enters a loop where it attempts
+    to solve the challenge by guessing the tiles. It continues to attempt
+    solutions until the challenge is solved or the process is
+    interrupted.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for interacting with the webpage.
+
+    Returns
+    -------
+    bool
+        True if the reCAPTCHA challenge was successfully solved, False
+        otherwise.
+
+    Notes
+    -----
+    This function assumes that the captcha challenge is contained within an
+    iframe. If the structure of the webpage changes, this function may need to
+    be updated.
+    """
     if not detected_captcha(driver):
         return True
 
@@ -381,6 +815,24 @@ async def solve_recaptcha2(driver: AntiDetectDriver):
     return True
 
 def solve_captcha(driver: AntiDetectDriver):
+    """
+    Solves a captcha challenge using the provided driver.
+
+    This function attempts to solve a captcha challenge by interacting with the
+    captcha elements on the page. It uses various helper functions to perform
+    the necessary actions, such as clicking on elements, scrolling, and sending
+    keys.
+
+    Parameters
+    ----------
+    driver : AntiDetectDriver
+        The driver instance to use for interacting with the captcha.
+
+    Returns
+    -------
+    bool
+        True if the captcha was successfully solved, False otherwise.
+    """
     # NOTE: in future, we might implement other solvers.
     challenge = 'recaptcha2'
     task = None
