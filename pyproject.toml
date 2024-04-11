@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "botasaurus"
-version = "1.0.0"
+name = "botasaurus2"
+version = "1.1.0"
 description = "Patching fork of botasaurus, The All in One Framework to build Awesome Scrapers."
 authors = ["Chetan Jain <chetan@omkar.cloud>"]
 license = "MIT"
@@ -27,6 +27,7 @@ aigents = "^0.5.0"
 [tool.poetry.group.dev.dependencies]
 black = "^24.3.0"
 flake8 = "^7.0.0"
+ipykernel = "^6.29.4"
 
 [build-system]
 requires = ["poetry-core"]

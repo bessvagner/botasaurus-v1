@@ -1,5 +1,6 @@
 import os
 import json
+from pathlib import Path
 
 from .utils import relative_path
 
@@ -25,11 +26,14 @@ class BasicStorageBackend:
         self.raise_dummy_exception()
 
 class JSONStorageBackend(BasicStorageBackend):
-    def __init__(self) -> None:
+    def __init__(self, base_dir: str = None) -> None:
+        self.base_dir = base_dir
         self.refresh()
 
     def refresh(self):
         self.json_path = relative_path( "local_storage.json", 0)
+        if self.base_dir is not None:
+            self.json_path = self.base_dir / Path("local_storage.json")
         self.json_data = {}
 
         if not os.path.isfile(self.json_path):
@@ -80,8 +84,8 @@ class JSONStorageBackend(BasicStorageBackend):
         self.commit_to_disk()
     
 class _LocalStorage:
-    def __init__(self) -> None:
-        self.storage_backend_instance = JSONStorageBackend()
+    def __init__(self, base_dir: str = None) -> None:
+        self.storage_backend_instance = JSONStorageBackend(base_dir)
 
     def refresh(self) -> None:
         self.storage_backend_instance.refresh()
@@ -105,7 +109,8 @@ class _LocalStorage:
     # def get_new_number(self):
     #     return self.storage_backend_instance.get_new_number()
 
-LocalStorage = _LocalStorage()
+# LocalStorage = _LocalStorage()
+LocalStorageClass = _LocalStorage
 
 if __name__ == "__main__":
     t = _LocalStorage()

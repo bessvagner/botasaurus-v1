@@ -10,6 +10,7 @@ import os
 import sys
 from datetime import datetime
 from time import sleep
+from pathlib import Path
 from .exceptions import CloudflareDetection
 
 from .check_and_download_driver import check_and_download_driver
@@ -47,7 +48,8 @@ from .decorators_utils import (
     create_directories_if_not_exists,
     create_directory_if_not_exists,
 )
-from .local_storage import LocalStorage
+# from .local_storage import LocalStorage
+from .local_storage import LocalStorageClass
 from .profile import Profile
 from .usage import Usage
 from .list_utils import flatten
@@ -339,6 +341,7 @@ def browser(
     retry_wait: Optional[int] = None,
     create_error_logs: bool = True,
     create_driver: Optional[Callable] = None,
+    local_storage_dir: Union[str, Path] = None
 ) -> Callable:
     def decorator_browser(func: Callable) -> Callable:
         if not hasattr(func, '_scraper_type'):
@@ -397,6 +400,7 @@ def browser(
             nonlocal proxy, user_agent, reuse_driver, keep_drivers_alive, raise_exception, must_raise_exceptions
 
             nonlocal output, output_formats, max_retry, retry_wait, create_driver, create_error_logs
+            nonlocal capabilities, local_storage_dir
 
             parallel = kwargs.get("parallel", parallel)
             data = kwargs.get("data", data)
@@ -429,7 +433,10 @@ def browser(
 
             raise_exception = kwargs.get("raise_exception", raise_exception)
             create_driver = kwargs.get("create_driver", create_driver)
+            capabilities = kwargs.get("capabilities", capabilities)
+            local_storage_dir = kwargs.get("local_storage_dir", local_storage_dir)
 
+            LocalStorageClass(local_storage_dir)
             fn_name = func.__name__
 
             if cache:
