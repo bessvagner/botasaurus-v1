@@ -320,7 +320,8 @@ async def get_guess_mask(target: str,
             mask.append(False)
     return mask
 
-def detected_captcha(driver: AntiDetectDriver):
+def detected_captcha(driver: AntiDetectDriver,
+                     timeout_to_detect_captcha_iframe=0.5):
     """
     Checks if a captcha challenge has been detected on the webpage.
 
@@ -347,7 +348,9 @@ def detected_captcha(driver: AntiDetectDriver):
     updated.
     """
     driver.switch_to.default_content()
-    frames = driver.find_all('iframe', by='tag name')
+    frames = driver.find_all(
+        'iframe', by='tag name', timeout=timeout_to_detect_captcha_iframe
+    )
     if frames and len(frames) > 1:
         return 'reCAPTCHA' in frames[0].get_attribute('title')
     return False
@@ -714,7 +717,8 @@ async def perform_guess(driver):
     await reperform_guess(driver, target, image_url)
     return rows, mask, target, image_url
 
-async def solve_recaptcha2(driver: AntiDetectDriver):
+async def solve_recaptcha2(driver: AntiDetectDriver,
+                           timeout_to_detect_captcha_iframe=0.5):
     """
     Attempts to solve a reCAPTCHA v2 challenge on a webpage.
 
@@ -741,7 +745,7 @@ async def solve_recaptcha2(driver: AntiDetectDriver):
     iframe. If the structure of the webpage changes, this function may need to
     be updated.
     """
-    if not detected_captcha(driver):
+    if not detected_captcha(driver, timeout_to_detect_captcha_iframe):
         return True
 
     click_captcha_checkbox(driver)
