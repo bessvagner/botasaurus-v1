@@ -245,6 +245,12 @@ def create_selenium_driver(options,
             )
             return driver
         service = ChromeService(executable_path=path)
+        if remote:
+            class CustomService(ChromeService):
+                @property
+                def service_url(self,):
+                    return "http://localhost:4444/wd/hub"
+            service = CustomService(executable_path=path)
         if desired_capabilities:
             for name, value in desired_capabilities.items():
                 options.set_capability(name, value)

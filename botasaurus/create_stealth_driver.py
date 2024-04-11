@@ -246,7 +246,7 @@ def launch_server_safe_chrome(options, start_url):
             return launch_chrome(start_url, options._arguments)
         raise
 
-def do_create_stealth_driver(data, options, desired_capabilities, start_url, wait,  raise_exception,add_arguments):
+def do_create_stealth_driver(data, options, desired_capabilities, start_url, wait,  raise_exception,add_arguments, remote: bool = False):
     options = clean_options(options)
     if add_arguments:
       add_arguments(data, options)
@@ -264,7 +264,7 @@ def do_create_stealth_driver(data, options, desired_capabilities, start_url, wai
     remote_driver_options.add_experimental_option(
         "debuggerAddress", f"127.0.0.1:{debug_port}"
     )
-    remote_driver = create_selenium_driver(remote_driver_options, desired_capabilities)
+    remote_driver = create_selenium_driver(remote_driver_options, desired_capabilities, remote=remote)
     pid = chrome.pid
 
     remote_driver.kill_chrome_by_pid = lambda: kill_process_by_pid(pid)
@@ -293,7 +293,8 @@ def do_create_stealth_driver(data, options, desired_capabilities, start_url, wai
 def create_stealth_driver(start_url:Optional[Union[Callable[[Any], str], str]]="NONE", wait=8, 
                           
                           raise_exception=False, 
-                          add_arguments: Optional[Callable[[Any, Options], None]] = None, ):
+                          add_arguments: Optional[Callable[[Any, Options], None]] = None,
+                          remote: bool = False):
     
     def run(data, options, desired_capabilities):
         evaluated_start_url = start_url(data) if callable(start_url) else start_url
@@ -305,7 +306,7 @@ def create_stealth_driver(start_url:Optional[Union[Callable[[Any], str], str]]="
     """
             raise ValueError(message)
         return do_create_stealth_driver(
-        data, options, desired_capabilities, evaluated_start_url, wait,  raise_exception, add_arguments,
+        data, options, desired_capabilities, evaluated_start_url, wait,  raise_exception, add_arguments, remote=remote
     )
 
     return run
