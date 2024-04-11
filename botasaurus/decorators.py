@@ -317,6 +317,7 @@ def browser(
     window_size: Optional[Union[Callable[[Any], str], str]] = None,
     tiny_profile: bool = False,
     is_eager: bool = False,
+    capabilities: dict = None,
     add_arguments: Optional[Union[List[str], Callable[[Any, Options], None]]] = None,
     extensions: Optional[Union[List[Any], Callable[[Any], List[Any]]]] = None,
     lang: Optional[Union[Callable[[Any], str], str]] = None,
@@ -480,7 +481,9 @@ def browser(
 
                     update_options(data, options, add_arguments, extensions)
 
-                    desired_capabilities = create_capabilities(is_eager)
+                    desired_capabilities = create_capabilities(
+                        is_eager, capabilities
+                    )
                     about = create_about(
                         evaluated_proxy,
                         evaluated_lang,

@@ -18,3 +18,16 @@ class BaseTestAntiDetectDriver(unittest.TestCase):
     def tearDown(self):
         self.driver.quit()
         logger.debug("Driver closed!")
+
+
+class BaseTestAntiDetectDriverWithCapabilities(BaseTestAntiDetectDriver):
+
+    def setUp(self):
+
+        capabilities = {'thisCapability': 'cap'}
+
+        @browser(output=None, capabilities=capabilities)
+        def driver_initializer_with_capabilities(driver: AntiDetectDriver, data):
+            return driver
+        self.driver = driver_initializer_with_capabilities()
+        logger.debug("Driver started!")

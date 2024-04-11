@@ -230,7 +230,10 @@ def is_server_mode():
     # Check if '--server' is in the list of command-line arguments
     return '--server' in argv
 
-def create_selenium_driver(options, desired_capabilities, attempt_download=True):
+def create_selenium_driver(options,
+                           desired_capabilities,
+                           attempt_download=True,
+                           remote=False):
 
     try:
         path = relative_path(get_driver_path(), 0)
@@ -316,8 +319,13 @@ def create_options_and_driver_attributes_and_close_proxy(tiny_profile, profile, 
 
             return options, driver_attributes, None
 
-def create_capabilities(is_eager):
-    desired_capabilities = get_eager_strategy() if is_eager  else None
+def create_capabilities(is_eager, capabilities):
+    desired_capabilities = get_eager_strategy() if is_eager else None
+    if capabilities:
+        if desired_capabilities:
+            desired_capabilities.update(capabilities)
+        else:
+            desired_capabilities = capabilities
     return desired_capabilities
 
 def block_resources_if_should(driver, block_resources, block_images):
