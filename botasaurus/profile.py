@@ -2,6 +2,7 @@ from datetime import datetime
 import json
 import os
 import random as random_module
+from pathlib import Path
 
 from .utils import datetime_to_str, relative_path, str_to_datetime
 
@@ -25,11 +26,14 @@ class BasicStorageBackend:
         self.raise_dummy_exception()
 
 class JSONStorageBackend(BasicStorageBackend):
-    def __init__(self) -> None:
+    def __init__(self, base_dir: str = None) -> None:
+        self.base_dir = base_dir
         self.refresh()
 
     def refresh(self):
         self.json_path = relative_path( "profiles.json", 0)
+        if self.base_dir is not None:
+            self.json_path = self.base_dir / Path("profiles.json")
         self.json_data = {}
 
         if not os.path.isfile(self.json_path):
@@ -71,8 +75,8 @@ class JSONStorageBackend(BasicStorageBackend):
         self.commit_to_disk()
     
 class _Profile:
-    def __init__(self) -> None:
-        self.storage_backend_instance = JSONStorageBackend()
+    def __init__(self, base_dir: str = None) -> None:
+        self.storage_backend_instance = JSONStorageBackend(base_dir)
 
     profile = None
     def refresh(self) -> None:
@@ -149,7 +153,11 @@ class _Profile:
         else: 
             raise Exception("Profile is not a dictionary.")
 
-Profile = _Profile()
+# Profile = _Profile()
+
+
+ProfileClass = _Profile
+
 
 if __name__ == "__main__":
     t = _Profile()

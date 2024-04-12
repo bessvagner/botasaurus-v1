@@ -50,7 +50,7 @@ from .decorators_utils import (
 )
 # from .local_storage import LocalStorage
 from .local_storage import LocalStorageClass
-from .profile import Profile
+from .profile import ProfileClass
 from .usage import Usage
 from .list_utils import flatten
 
@@ -436,7 +436,9 @@ def browser(
             capabilities = kwargs.get("capabilities", capabilities)
             local_storage_dir = kwargs.get("local_storage_dir", local_storage_dir)
 
-            LocalStorageClass(local_storage_dir)
+            local_storage = LocalStorageClass(local_storage_dir)
+            profile = ProfileClass(local_storage_dir)
+            Profile = profile  # TODO: alter thourghout this module
             fn_name = func.__name__
 
             if cache:
