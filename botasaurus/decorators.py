@@ -75,7 +75,8 @@ def get_page_source_safe(driver):
 
 
 IS_PRODUCTION = os.environ.get("ENV") == "production"
-create_directories_if_not_exists()
+if not os.environ.get('DONT_CREATE_DIRS'):
+    create_directories_if_not_exists()
 
 # Define a global variable to track the first run
 first_run = True
