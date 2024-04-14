@@ -11,7 +11,7 @@ from selenium.common.exceptions import SessionNotCreatedException
 
 from .get_chrome_version import get_driver_path
 from .driver_about import AboutBrowser
-from .anti_detect_driver import AntiDetectDriver
+from .anti_detect_driver import AntiDetectDriver, AntiDetectDriverRemote
 from .user_agent import UserAgent, UserAgentInstance
 from .utils import get_current_profile_path,  read_json, relative_path, silentremove, write_json
 from .window_size import WindowSize, WindowSizeInstance
@@ -236,6 +236,9 @@ def create_selenium_driver(options,
                            remote=False):
 
     try:
+        if desired_capabilities:
+            for name, value in desired_capabilities.items():
+                options.set_capability(name, value)
         path = relative_path(get_driver_path(), 0)
         if selenium.__version__ == '4.5.0':
             driver = AntiDetectDriver(
@@ -246,14 +249,10 @@ def create_selenium_driver(options,
             return driver
         service = ChromeService(executable_path=path)
         if remote:
-            class CustomService(ChromeService):
-                @property
-                def service_url(self,):
-                    return "http://localhost:4444/wd/hub"
-            service = CustomService(executable_path=path)
-        if desired_capabilities:
-            for name, value in desired_capabilities.items():
-                options.set_capability(name, value)
+            return AntiDetectDriverRemote(
+                command_executor="http://localhost:4444/wd/hub",
+                options=options
+            )
         return AntiDetectDriver(options=options, service=service)
         
     except SessionNotCreatedException as e:

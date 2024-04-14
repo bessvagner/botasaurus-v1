@@ -15,6 +15,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.common.exceptions import (
     StaleElementReferenceException,
     JavascriptException,
@@ -1727,3 +1728,11 @@ class AntiDetectDriver(Chrome):
             )
         except TimeoutException as err:
             logger.error(err)
+
+class AntiDetectDriverRemote(WebDriver):
+    def __init__(self, *args, **kwargs):
+        self.about: AboutBrowser = None
+        self.is_network_enabled = False
+        self.close_proxy = False
+        self.timeout = 12
+        WebDriver.__init__(self, *args, **kwargs)
