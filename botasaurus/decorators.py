@@ -342,7 +342,8 @@ def browser(
     retry_wait: Optional[int] = None,
     create_error_logs: bool = True,
     create_driver: Optional[Callable] = None,
-    local_storage_dir: Union[str, Path] = None
+    local_storage_dir: Union[str, Path] = None,
+    remote: bool = False
 ) -> Callable:
     def decorator_browser(func: Callable) -> Callable:
         if not hasattr(func, '_scraper_type'):
@@ -401,7 +402,7 @@ def browser(
             nonlocal proxy, user_agent, reuse_driver, keep_drivers_alive, raise_exception, must_raise_exceptions
 
             nonlocal output, output_formats, max_retry, retry_wait, create_driver, create_error_logs
-            nonlocal capabilities, local_storage_dir
+            nonlocal capabilities, local_storage_dir, remote
 
             parallel = kwargs.get("parallel", parallel)
             data = kwargs.get("data", data)
@@ -436,7 +437,8 @@ def browser(
             create_driver = kwargs.get("create_driver", create_driver)
             capabilities = kwargs.get("capabilities", capabilities)
             local_storage_dir = kwargs.get("local_storage_dir", local_storage_dir)
-
+            remote = kwargs.get("remote", remote)
+            
             local_storage = LocalStorageClass(local_storage_dir)
             profile = ProfileClass(local_storage_dir)
             Profile = profile  # TODO: alter thourghout this module
@@ -473,7 +475,8 @@ def browser(
                 elif reuse_driver and len(_driver_pool) > 0:
                     driver = _driver_pool.pop()
                 else:
-                    check_and_download_driver()
+                    if not remote:
+                        check_and_download_driver()
 
                     (
                         options,
