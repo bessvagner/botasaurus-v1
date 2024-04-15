@@ -347,7 +347,8 @@ def browser(
     create_error_logs: bool = True,
     create_driver: Optional[Callable] = None,
     local_storage_dir: Union[str, Path] = None,
-    remote: bool = False
+    remote: bool = False,
+    remote_url: str = None
 ) -> Callable:
     def decorator_browser(func: Callable) -> Callable:
         if not hasattr(func, '_scraper_type'):
@@ -406,7 +407,7 @@ def browser(
             nonlocal proxy, user_agent, reuse_driver, keep_drivers_alive, raise_exception, must_raise_exceptions
 
             nonlocal output, output_formats, max_retry, retry_wait, create_driver, create_error_logs
-            nonlocal capabilities, local_storage_dir, remote
+            nonlocal capabilities, local_storage_dir, remote, remote_url
 
             parallel = kwargs.get("parallel", parallel)
             data = kwargs.get("data", data)
@@ -442,6 +443,7 @@ def browser(
             capabilities = kwargs.get("capabilities", capabilities)
             local_storage_dir = kwargs.get("local_storage_dir", local_storage_dir)
             remote = kwargs.get("remote", remote)
+            remote_url = kwargs.get("remote_url", remote_url)
             
             local_storage = LocalStorageClass(local_storage_dir)
             Profile = ProfileClass(local_storage_dir / Path('profiles'))
@@ -553,7 +555,7 @@ def browser(
                         else:
                             driver = create_driver(data, options, desired_capabilities)
                     else:
-                        driver = create_selenium_driver(options, desired_capabilities)
+                        driver = create_selenium_driver(options, desired_capabilities, remote=remote, remote_url=remote_url)
 
                     driver.about = about
 

@@ -239,7 +239,8 @@ def is_server_mode():
 def create_selenium_driver(options,
                            desired_capabilities,
                            attempt_download=True,
-                           remote=False):
+                           remote=False,
+                           remote_url="http://localhost:4444/wd/hub"):
 
     try:
         if desired_capabilities:
@@ -250,7 +251,7 @@ def create_selenium_driver(options,
             logger.debug(options.to_capabilities())
             logger.debug(options.arguments)
             return AntiDetectDriverRemote(
-                command_executor="http://localhost:4444/wd/hub",
+                command_executor=remote_url,
                 options=options
             )
         path = relative_path(get_driver_path(), 0)
