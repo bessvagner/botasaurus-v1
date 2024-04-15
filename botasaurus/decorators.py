@@ -1,3 +1,9 @@
+import os
+import sys
+import logging
+from datetime import datetime
+from time import sleep
+from pathlib import Path
 from joblib import Parallel, delayed
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
@@ -6,11 +12,6 @@ from queue import Queue
 from threading import Thread
 from traceback import print_exc, format_exc
 from typing import Any, Callable, Optional, Union, List
-import os
-import sys
-from datetime import datetime
-from time import sleep
-from pathlib import Path
 from .exceptions import CloudflareDetection
 
 from .check_and_download_driver import check_and_download_driver
@@ -53,6 +54,9 @@ from .local_storage import LocalStorageClass
 from .profile import ProfileClass
 from .usage import Usage
 from .list_utils import flatten
+
+
+logger = logging.getLogger('standard')
 
 
 class RetryException(Exception):
@@ -492,9 +496,7 @@ def browser(
                         evaluated_lang,
                         base_dir=local_storage_dir
                     )
-
                     update_options(data, options, add_arguments, extensions)
-
                     desired_capabilities = create_capabilities(
                         is_eager, capabilities
                     )

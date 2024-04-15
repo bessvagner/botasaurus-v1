@@ -1,5 +1,6 @@
-from time import sleep
 import os
+import logging
+from time import sleep
 from sys import argv
 from shutil import rmtree
 from pathlib import Path
@@ -19,6 +20,9 @@ from .window_size import WindowSize, WindowSizeInstance
 
 DEFAULT_BLOCKED_RESOURCES = ['.css', '.jpg', '.jpeg', '.png', '.svg', '.gif', '.woff', '.pdf', '.zip']
 DEFAULT_BLOCKED_RESOURCES_EXCEPT_CSS = ['.jpg', '.jpeg', '.png', '.svg', '.gif', '.woff', '.pdf', '.zip']
+
+logger = logging.getLogger('standard')
+
 
 def get_eager_strategy():
     caps = DesiredCapabilities().CHROME
@@ -41,8 +45,8 @@ def add_useragent(options, user_agent):
 
 def create_profile_path(user_id, base_dir='.'):
     PROFILES_PATH = 'profiles'
-    PATH = Path(base_dir) / f'{PROFILES_PATH}/{user_id}'
-    path = relative_path(PATH, 0)
+    path = Path(base_dir) / f'{PROFILES_PATH}/{user_id}'
+    # path = relative_path(path, 0)
     return path
 
 
@@ -106,10 +110,11 @@ def add_essential_options(options, profile, window_size, user_agent, base_dir='.
 
     if has_user:
         path = create_profile_path(profile, base_dir=base_dir)
-        user_data_path = f"--user-data-dir={path}"
+        logger.debug(path)
+        user_data_path = f"--user-data-dir=/{path}"
         options.add_argument(user_data_path)
 
-    return {"window_size": window_size, "user_agent": user_agent, "profile": profile}
+    return options, {"window_size": window_size, "user_agent": user_agent, "profile": profile}
 
 def hide_automation_bar(options):
     options.add_argument('--disable-blink-features=AutomationControlled')
@@ -240,6 +245,14 @@ def create_selenium_driver(options,
         if desired_capabilities:
             for name, value in desired_capabilities.items():
                 options.set_capability(name, value)
+        if remote:
+            logger.debug(desired_capabilities)
+            logger.debug(options.to_capabilities())
+            logger.debug(options.arguments)
+            return AntiDetectDriverRemote(
+                command_executor="http://localhost:4444/wd/hub",
+                options=options
+            )
         path = relative_path(get_driver_path(), 0)
         if selenium.__version__ == '4.5.0':
             driver = AntiDetectDriver(
@@ -249,11 +262,6 @@ def create_selenium_driver(options,
             )
             return driver
         service = ChromeService(executable_path=path)
-        if remote:
-            return AntiDetectDriverRemote(
-                command_executor="http://localhost:4444/wd/hub",
-                options=options
-            )
         return AntiDetectDriver(options=options, service=service)
         
     except SessionNotCreatedException as e:
@@ -298,7 +306,7 @@ def create_options_and_driver_attributes_and_close_proxy(tiny_profile, profile, 
         if lang is not None:
             options.add_argument(f'--lang={lang}')
 
-        driver_attributes = add_essential_options(
+        options, driver_attributes = add_essential_options(
             options, None if tiny_profile else profile, window_size, user_agent, base_dir=base_dir)
         
         hide_automation_bar(options)

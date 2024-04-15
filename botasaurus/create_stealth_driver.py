@@ -1,5 +1,6 @@
-from javascript_fixes.errors import JavaScriptError
+import logging
 from sys import argv
+from javascript_fixes.errors import JavaScriptError
 from .exceptions import CloudflareDetection
 from .check_and_download_driver import check_and_download_driver
 from typing import Callable, Any, Optional, Union
@@ -11,6 +12,9 @@ from .create_driver_utils import create_selenium_driver, do_create_driver_with_c
 from selenium.webdriver.chrome.options import Options
 import subprocess
 from os import name
+
+logger = logging.getLogger('standard')
+
 
 def kill_process_by_pid(pid):
     if pid is None:
@@ -250,9 +254,9 @@ def do_create_stealth_driver(data, options, desired_capabilities, start_url, wai
     options = clean_options(options)
     if add_arguments:
         add_arguments(data, options)
-    remote_driver_options = Options()
-    
+    remote_driver_options = options
     if not remote:
+        remote_driver_options = Options()
         chrome = launch_server_safe_chrome(options, start_url)
         debug_port = chrome.port
 
@@ -265,6 +269,7 @@ def do_create_stealth_driver(data, options, desired_capabilities, start_url, wai
         remote_driver_options.add_experimental_option(
             "debuggerAddress", f"127.0.0.1:{debug_port}"
         )
+    logger.debug(remote_driver_options)
     remote_driver = create_selenium_driver(remote_driver_options, desired_capabilities, remote=remote)
     if not remote:
         pid = chrome.pid
