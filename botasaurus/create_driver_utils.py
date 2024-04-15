@@ -2,6 +2,7 @@ from time import sleep
 import os
 from sys import argv
 from shutil import rmtree
+from pathlib import Path
 
 import selenium
 from selenium.webdriver.chrome.options import Options
@@ -38,9 +39,9 @@ def add_useragent(options, user_agent):
         options.add_argument(f'--user-agent={user_agent}')
 
 
-def create_profile_path(user_id):
+def create_profile_path(user_id, base_dir='.'):
     PROFILES_PATH = 'profiles'
-    PATH = f'{PROFILES_PATH}/{user_id}'
+    PATH = Path(base_dir) / f'{PROFILES_PATH}/{user_id}'
     path = relative_path(PATH, 0)
     return path
 
@@ -63,7 +64,7 @@ def delete_profile_path(user_id):
 
 
 
-def add_essential_options(options, profile, window_size, user_agent):
+def add_essential_options(options, profile, window_size, user_agent, base_dir='.'):
     options.add_argument("--start-maximized")
     if window_size != WindowSize.REAL:
         if window_size == None:
@@ -104,7 +105,7 @@ def add_essential_options(options, profile, window_size, user_agent):
     has_user = profile is not None
 
     if has_user:
-        path = create_profile_path(profile)
+        path = create_profile_path(profile, base_dir=base_dir)
         user_data_path = f"--user-data-dir={path}"
         options.add_argument(user_data_path)
 
@@ -173,8 +174,8 @@ def do_download_driver():
 #     from .download_driver import download_driver
 #     download_driver()
 
-def save_cookies(driver, profile):
-            current_profile_data = get_current_profile_path(profile) + 'profile.json'
+def save_cookies(driver, profile, base_dir='.'):
+            current_profile_data = Path(base_dir) / get_current_profile_path(profile) + 'profile.json'
             current_profile_data_path =  relative_path(current_profile_data, 0)
 
             driver._enable_network()
@@ -187,14 +188,14 @@ def save_cookies(driver, profile):
             write_json(cookies, current_profile_data_path)
 
 
-def load_cookies(driver: AntiDetectDriver, profile):
-    current_profile = get_current_profile_path(profile)
+def load_cookies(driver: AntiDetectDriver, profile, base_dir='.'):
+    current_profile = Path(base_dir) / get_current_profile_path(profile)
     current_profile_path = relative_path(current_profile, 0)
 
     if not os.path.exists(current_profile_path):
         os.makedirs(current_profile_path)
 
-    current_profile_data = get_current_profile_path(profile) + 'profile.json'
+    current_profile_data = Path(base_dir) / get_current_profile_path(profile) + 'profile.json'
     current_profile_data_path = relative_path(current_profile_data, 0)
 
     if not os.path.isfile(current_profile_data_path):
@@ -276,7 +277,7 @@ def create_about(proxy, lang, beep, driver_attributes,):
     about = AboutBrowser(window_size=driver_attributes.get('window_size'), user_agent=driver_attributes.get('user_agent'), profile=driver_attributes.get('profile'),proxy=proxy, lang=lang, beep=beep, is_new=True)
     return about
 
-def create_options_and_driver_attributes_and_close_proxy(tiny_profile, profile, window_size, user_agent, proxy,  headless, lang):
+def create_options_and_driver_attributes_and_close_proxy(tiny_profile, profile, window_size, user_agent, proxy,  headless, lang, base_dir='.'):
         if tiny_profile and profile is None:
             raise Exception('Profile must be given when using tiny profile')
 
@@ -298,7 +299,7 @@ def create_options_and_driver_attributes_and_close_proxy(tiny_profile, profile, 
             options.add_argument(f'--lang={lang}')
 
         driver_attributes = add_essential_options(
-            options, None if tiny_profile else profile, window_size, user_agent)
+            options, None if tiny_profile else profile, window_size, user_agent, base_dir=base_dir)
         
         hide_automation_bar(options)
 
@@ -353,9 +354,9 @@ def block_resources_if_should(driver, block_resources, block_images):
             driver.execute_cdp_cmd('Network.setBlockedURLs', {"urls": default_patterns})
 
 
-def do_create_driver(tiny_profile, profile, window_size, user_agent, proxy, is_eager, headless, lang, block_resources, block_images, beep) -> AntiDetectDriver:
+def do_create_driver(tiny_profile, profile, window_size, user_agent, proxy, is_eager, headless, lang, block_resources, block_images, beep, base_dir='.') -> AntiDetectDriver:
 
-        options, driver_attributes, close_proxy = create_options_and_driver_attributes_and_close_proxy(tiny_profile, profile, window_size, user_agent, proxy, headless, lang,)
+        options, driver_attributes, close_proxy = create_options_and_driver_attributes_and_close_proxy(tiny_profile, profile, window_size, user_agent, proxy, headless, lang, base_dir)
         desired_capabilities  = create_capabilities(is_eager)
 
         driver = create_selenium_driver(options, desired_capabilities)
@@ -372,9 +373,9 @@ def do_create_driver(tiny_profile, profile, window_size, user_agent, proxy, is_e
 
         return driver
 
-def do_create_driver_with_custom_driver_creator(tiny_profile, profile, window_size, user_agent, proxy, is_eager, headless, lang, block_resources, block_images, beep, create_driver) -> AntiDetectDriver:
+def do_create_driver_with_custom_driver_creator(tiny_profile, profile, window_size, user_agent, proxy, is_eager, headless, lang, block_resources, block_images, beep, create_driver, base_dir='.') -> AntiDetectDriver:
 
-        options, driver_attributes, close_proxy = create_options_and_driver_attributes_and_close_proxy(tiny_profile, profile, window_size, user_agent, proxy, headless, lang,)
+        options, driver_attributes, close_proxy = create_options_and_driver_attributes_and_close_proxy(tiny_profile, profile, window_size, user_agent, proxy, headless, lang, base_dir=base_dir)
         desired_capabilities  = create_capabilities(is_eager)
 
         driver = create_driver(options, desired_capabilities)

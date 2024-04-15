@@ -7,6 +7,7 @@ from http.client import RemoteDisconnected
 from time import sleep
 from urllib.error import ContentTooShortError, URLError
 from sys import platform, exit
+from pathlib import Path
 
 from selenium.webdriver.remote.webelement import WebElement
 
@@ -32,6 +33,8 @@ def is_windows():
 
 def relative_path(path, goback=0):
     levels = [".."] * (goback + -1)
+    if isinstance(path, Path):
+        path = str(path.resolve())
     return os.path.abspath(os.path.join(os.getcwd(), *levels, path.strip()))
 
 def retry(func, retry_wait=None, retries=5):

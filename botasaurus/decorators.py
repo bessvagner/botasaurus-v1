@@ -440,8 +440,8 @@ def browser(
             remote = kwargs.get("remote", remote)
             
             local_storage = LocalStorageClass(local_storage_dir)
-            profile = ProfileClass(local_storage_dir)
-            Profile = profile  # TODO: alter thourghout this module
+            Profile = ProfileClass(local_storage_dir / Path('profiles'))
+            Profile.profile = profile
             fn_name = func.__name__
 
             if cache:
@@ -490,6 +490,7 @@ def browser(
                         evaluated_proxy,
                         evaluated_headless,
                         evaluated_lang,
+                        base_dir=local_storage_dir
                     )
 
                     update_options(data, options, add_arguments, extensions)
@@ -537,6 +538,7 @@ def browser(
                                     evaluated_proxy,
                                     evaluated_headless,
                                     evaluated_lang,
+                                    base_dir=local_storage_dir
                                 )
                                 update_options(data, options, add_arguments, extensions)
                                 desired_capabilities = create_capabilities(is_eager)
