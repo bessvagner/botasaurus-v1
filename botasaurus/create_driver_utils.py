@@ -111,8 +111,10 @@ def add_essential_options(options, profile, window_size, user_agent, base_dir='.
     if has_user:
         path = create_profile_path(profile, base_dir=base_dir)
         logger.debug(path)
-        user_data_path = f"--user-data-dir=/{path}"
+        user_data_path = f"--user-data-dir={path}"
+        profile_directory = f"--profile-directory={profile}"
         options.add_argument(user_data_path)
+        options.add_argument(profile_directory)
 
     return options, {"window_size": window_size, "user_agent": user_agent, "profile": profile}
 
