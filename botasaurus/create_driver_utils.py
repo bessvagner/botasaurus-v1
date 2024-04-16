@@ -45,7 +45,7 @@ def add_useragent(options, user_agent):
 
 def create_profile_path(user_id, base_dir='.'):
     PROFILES_PATH = 'profiles'
-    path = Path(base_dir) / f'{PROFILES_PATH}/{user_id}'
+    path = Path(base_dir) / f'{PROFILES_PATH}'
     # path = relative_path(path, 0)
     return path
 
