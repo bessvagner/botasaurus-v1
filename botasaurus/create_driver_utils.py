@@ -110,7 +110,6 @@ def add_essential_options(options, profile, window_size, user_agent, base_dir='.
 
     if has_user:
         path = create_profile_path(profile, base_dir=base_dir)
-        logger.debug(path)
         user_data_path = f"--user-data-dir={path}"
         profile_directory = f"--profile-directory={profile}"
         options.add_argument(user_data_path)
@@ -249,9 +248,6 @@ def create_selenium_driver(options,
             for name, value in desired_capabilities.items():
                 options.set_capability(name, value)
         if remote:
-            logger.debug(desired_capabilities)
-            logger.debug(options.to_capabilities())
-            logger.debug(options.arguments)
             return AntiDetectDriverRemote(
                 command_executor=remote_url,
                 options=options
