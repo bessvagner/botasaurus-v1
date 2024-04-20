@@ -250,7 +250,7 @@ def launch_server_safe_chrome(options, start_url):
             return launch_chrome(start_url, options._arguments)
         raise
 
-def do_create_stealth_driver(data, options, desired_capabilities, start_url, wait,  raise_exception,add_arguments, remote: bool = False):
+def do_create_stealth_driver(data, options, desired_capabilities, start_url, wait,  raise_exception,add_arguments, remote: bool = False, remote_url: str = "http://selenoid:4444/wd/hub"):
     options = clean_options(options)
     if add_arguments:
         add_arguments(data, options)
@@ -269,8 +269,7 @@ def do_create_stealth_driver(data, options, desired_capabilities, start_url, wai
         remote_driver_options.add_experimental_option(
             "debuggerAddress", f"127.0.0.1:{debug_port}"
         )
-    logger.debug(remote_driver_options)
-    remote_driver = create_selenium_driver(remote_driver_options, desired_capabilities, remote=remote)
+    remote_driver = create_selenium_driver(remote_driver_options, desired_capabilities, remote=remote, remote_url=remote_url)
     if not remote:
         pid = chrome.pid
 
