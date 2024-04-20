@@ -446,7 +446,10 @@ def browser(
             remote_url = kwargs.get("remote_url", remote_url)
             
             local_storage = LocalStorageClass(local_storage_dir)
-            Profile = ProfileClass(local_storage_dir / Path('profiles'))
+            profile_path = None
+            if local_storage_dir:
+                profile_path = local_storage_dir / Path('profiles')
+            Profile = ProfileClass(profile_path)
             Profile.profile = profile
             fn_name = func.__name__
 

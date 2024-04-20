@@ -241,7 +241,7 @@ def create_selenium_driver(options,
                            desired_capabilities,
                            attempt_download=True,
                            remote=False,
-                           remote_url="http://localhost:4444/wd/hub"):
+                           remote_url="http://selenoid:4444/wd/hub"):
 
     try:
         if desired_capabilities:

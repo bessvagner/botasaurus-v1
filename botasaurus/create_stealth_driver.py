@@ -250,48 +250,45 @@ def launch_server_safe_chrome(options, start_url):
             return launch_chrome(start_url, options._arguments)
         raise
 
-def do_create_stealth_driver(data, options, desired_capabilities, start_url, wait,  raise_exception,add_arguments, remote: bool = False):
+def do_create_stealth_driver(data, options, desired_capabilities, start_url, wait,  raise_exception,add_arguments, remote: bool = False, remote_url: str = "http://selenoid:4444/wd/hub"):
     options = clean_options(options)
     if add_arguments:
         add_arguments(data, options)
-    remote_driver_options = options
-    if not remote:
-        remote_driver_options = Options()
-        chrome = launch_server_safe_chrome(options, start_url)
-        debug_port = chrome.port
+    # remote_driver_options = options
+    remote_driver_options = Options()
+    chrome = launch_server_safe_chrome(options, start_url)
+    debug_port = chrome.port
 
-        should_wait = start_url and wait
-        if should_wait:
-                print(f"Waiting {wait} seconds before connecting to Chrome...")
-                sleep(wait)
+    should_wait = start_url and wait
+    if should_wait:
+            print(f"Waiting {wait} seconds before connecting to Chrome...")
+            sleep(wait)
 
 
-        remote_driver_options.add_experimental_option(
-            "debuggerAddress", f"127.0.0.1:{debug_port}"
-        )
-    logger.debug(remote_driver_options)
-    remote_driver = create_selenium_driver(remote_driver_options, desired_capabilities, remote=remote)
-    if not remote:
-        pid = chrome.pid
+    remote_driver_options.add_experimental_option(
+        "debuggerAddress", f"127.0.0.1:{debug_port}"
+    )
+    remote_driver = create_selenium_driver(remote_driver_options, desired_capabilities, remote=remote, remote_url=remote_url)
+    pid = chrome.pid
 
-        remote_driver.kill_chrome_by_pid = lambda: kill_process_by_pid(pid)
+    remote_driver.kill_chrome_by_pid = lambda: kill_process_by_pid(pid)
 
-        if not should_wait:
-                sleep(1) # Still do some wait to prevent exceptions
+    if not should_wait:
+            sleep(1) # Still do some wait to prevent exceptions
 
-        # input('after create')
+    # input('after create')
+    try:
+        if start_url:
+            bypass_detection(remote_driver, raise_exception)
+    except CloudflareDetection as e:
+        
         try:
-            if start_url:
-                bypass_detection(remote_driver, raise_exception)
-        except CloudflareDetection as e:
-            
-            try:
-                remote_driver.close()
-                remote_driver.quit()
-            except:
-                pass
+            remote_driver.close()
+            remote_driver.quit()
+        except:
+            pass
 
-            raise e
+        raise e
 
 
     return remote_driver
