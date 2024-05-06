@@ -21,7 +21,7 @@ selenium = "^4.9.0"
 botasaurus-proxy-authentication = "^1.0.12"
 capsolver-extension-python = "^1.0.1"
 lxml = "^5.1.0"
-aigents = "^0.7.1"
+aigents = ">=0.7.2"
 
 
 [tool.poetry.group.dev.dependencies]
