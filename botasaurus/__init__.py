@@ -6,7 +6,7 @@ from .anti_detect_driver import AntiDetectDriverRemote
 from .anti_detect_requests import AntiDetectRequests
 import botasaurus.bt as bt
 
-logger = logging.getLogger()
+logger = logging.getLogger("botasaurus")
 logger.setLevel(logging.DEBUG)
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.DEBUG)
