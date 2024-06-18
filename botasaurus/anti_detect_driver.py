@@ -996,7 +996,7 @@ class AntiDetectDriver(Chrome):
             return []
         try:
             return wait.until(
-                lambda: element.find_elements(ATTR_SELECTOR[by], value),
+                lambda driver: element.find_elements(ATTR_SELECTOR[by], value),
                 f"Failed finding child of {element}"
             )
         except TimeoutException:
